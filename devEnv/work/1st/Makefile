@@ -1,7 +1,4 @@
-# ===================================================
 #  Makefile for Embedded Linux System Monitor Project
-# ===================================================
-
 CC      := gcc
 CFLAGS  := -Wall -Wextra -std=c11 -O2
 LDFLAGS := -lncurses
@@ -16,21 +13,23 @@ OBJ     := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
 
 .PHONY: all clean run runlog dirs
 
-# Build + run automatically
+# build and run automatically
 all: dirs $(TARGET)
 	@echo " Running $(TARGET)..."
 	@./$(TARGET)
 
+# create the directories if they do not exist
 dirs:
 	mkdir -p $(OBJ_DIR) $(BIN_DIR)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-	@echo " Build complete: $@"
+	@echo " Build completed on: $@"
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# now run the program
 run: all
 
 runlog: all
