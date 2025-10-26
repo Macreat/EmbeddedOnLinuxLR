@@ -1,0 +1,3 @@
+# lectures DIR
+
+lectures notes
