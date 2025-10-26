@@ -1,0 +1,106 @@
+notes about 0509 lecture
+
+# linux distributions
+
+# slackware (1st one) and any others
+
+--- MCU (OS) architecture core : KERNEL monolitico or MICROKERNEL; decount of system hardware
+FOR mcu this is a HALL.
+
+    first approach for linux was OS development, THIS has had HARDWARE restrictions
+
+firt go debian, then ubuntu, then mint. 
+
+
+distributions are designed for specifics context (old hardware) 
+-- LIFE CD, LIFE USB (os on a external disk), this differ about they GNU integration, package 
+software and manadgement system configuration 
+
+an OS require GNU/LINUX 
+
+THIS A doble side knifecut cause we have many choises to select ¿which one is the right? 
+
+----------------------------------------
+lets review the MAJOR OS components. 
+
+
+
+1. core (kernel)
+
+2. systmem libraries (linux core are writted on C, LIBC, LIBM )
+
+
+3. shell: (simple software code to use the hardware associated to our system)
+
+
+4. system utilites : just PROGRAMS for administrate/manage the system 
+
+-------------------------------------------------------
+
+# LINUX SYSTEM ARCHITECTURE 
+
+are separated on 
+1. user space: 
+
+    as applications 
+
+2. kernel space: 
+    as virtual system files (vfl)
+
+multiuser systems --- multiple conections on multiperhipericals or a RED (LAN/WAN )
+
+ ---------------------------------------------------
+
+there is many key points to use linux on embedded development 
+    a. configurability directly from the core (kernel architecture)
+    b. hardware support : drivers support for sOc and many peripherals
+    c. open source license 
+    d. approach to the RTOs development used for deterministic tasks RESPONSE
+
+
+
+-------------------------------
+
+how linux system detect peripherals  or management system : 
+    files : 
+
+
+
+----------------------------------
+
+linux commands :  
+
+on CMD terminal commands: 
+    ls -l 
+
+
+*** on a ssd: TB writted. disk durability 
+
+
+        to see processor cappabilities: 
+            cat cpuinfo on proc file 
+
+
+        cat stat to see CPU performance and USE 
+
+# Make a C in C that reads the info of these archovovos, read how much installed physical memory,
+  use of the nucleus and more status, (deploy at real time and on intervals?)
+
+
+  --- BASED ON distributions : 
+     installed packages ... 
+            as sudo apt... etc 
+
+
+        * sudo apt install gcc git gcc-c sudo
+
+        code & ( to multitask)
+
+TUI it means TEXT USER INTERPHACE... 
+
+use make in order to compile from the CMD 
+
+¿ what it means link? (enlazar)
+
+
+on .git ignore  : main.i and utilites, also the compile files 

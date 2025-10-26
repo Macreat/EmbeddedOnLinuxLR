@@ -1,0 +1,102 @@
+# code from hello. c 
+
+# $ ddd hello ¿? -> to acces form the terminal to DDD docker. 
+# $ ddd hello &
+
+
+# valgrind --tool=callgrind ./hello  (another tool to use a analyser ... uno , dos, tres y cuatro y debería generar un archivo
+estos archivos, son blocs de salida TEDIOSAS DE leer, pero un a herramienta para esto es : 
+        kcachegrind.out 6876 ... thats the number created )
+then
+#rm calgrind ... output? 
+
+#rm hello.log 
+
+
+# to a call a file .\"file_name" ... why "uno,dos,tres?" 
+        Entrega información de depurable. 
+        Tengo acceso al ensabmlador. ( el que es una representaicon memonica del codigo binario )
+
+--------------------------------
+
+El depurador puede : encontrar los binarios de mi ejecutador y decirme en qué posiciones están 
+mis instrucciones con representación binaria. 
+
+
+
+El análisis estático UNICAMENTE se hace sobre el codigo fuente. 
+ 
+el analizador dinámico trabaja con el programa directamente 
+
+
+LLENAR LA PILA : STACK overflow ,esto sucede con frecuencia cuando hago un programa y hago uso excesivo
+de la recurisividad. 
+-->>¿qué es CALL GRAPH? 
+
+
+
+------------------------------------------------------------------
+
+STACK overflow as example: 
+
+int main ( 
+        {
+                unsigned long int tope = 1000;
+                unsigned long int suma = 0; 
+                for (unsigned lon int i=0; i<tope; i++)
+                        suma+= i; 
+                print ("suma: %u\n\r", suma);
+                return 0; 
+        }
+)
+
+# to create a file mkdir StackOff
+then cd to StackOff
+then ...
+#
+
+To run a file : 
+
+#gcc -o stackoverflow stackoverflow.c 
+./namefile.c 
+
+para ver la 
+
+
+
+#nvim stackoverflow.c ¿'? what is this to use 
+
+NOW creating a PYTHON FIKE :. 
+
+nvim cosine.py 
+python3 cosine.py
+
+
+
+PYTHONMALLOC = malloc valgrind --tool = callgrind python3 cosine.py 
+
+
+kcachegrind ... ¿? (para ver el grafo de llamadas. (VER SI HAY PROFUNIDAD  O NO ,ESto implica que  las funciones en el codigo están INTRINCADAS.  " ))
+
+PYHON CALLGRPAH REVIEW LIBRARIES and installed on a VIRTUAL ENVIROMENT ...
+
+
+To create a virutal ENVIROMENT
+
+
+
+
+virtualenv pyCallGraph 
+
+pip install pyCallGraph ... numpy , mat... etc 
+
+AND Use graphviz --  ...  to visualize the code, this generates a png file and then WE CAN : 
+
+open pycallgraph.png ... to open the file on the folder ... ¿? 
+
+
+NEXT SESION :
+
+CREAR CALLGRAPH de estos dos codigos para visalizar y comparar. 
+
+CODIGO PARA MOSTRAR EL USO DE LA MEMORIA RAM en py Y C

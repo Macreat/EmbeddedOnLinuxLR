@@ -1,0 +1,54 @@
+1. PLC : 5 -> X ambiguedad debido a la multiple funcionalidad  
+2. RASPBERRY: 1
+3. BRAZO ROBÓTICO: 3 
+4. SISTEMA METEREOLÓGICO: 5 
+
+------------
+
+# characteristics of an embebid: 
+ - always reviwe the requirements 
+ - on lynux, its implmeneted as low level and use data register method. 
+ 
+ * 
+
+system definition : a system is more than the sum of its parts. 
+
+
+    * system is a set of interrelated components working together toward some purpose.
+    * has to have a CPU and a memory or recorder data. 
+
+MCU: requires memory managment. 
+
+----------------
+in order to know if implement lynyx it is a good strategie: 
+
+1. review hardware access (drivers via or direct as BARE-METAL)
+
+2. time needed to elaborate the project 
+
+3. 
+ ie, not always its the strategie, also existe FreeRTOS, VxWorks, QNX, zephyr ,etc. selection dependes on 
+objectives and project scope. 
+
+embbeded on linux, debbian, (andorid uses on their core, a linux implementation),etc are the most used on art state. 
+
+
+
+-----------
+# super loop concept : 
+# LINUX IS A KERNEL : 
+
+# about a differences between a OS and a KERNEL:  
+
+* linux kernel is the core of the OS, it manages the resources and implemetates protocols of communication 
+between hardware and software. 
+
+* a kernel is a first abstraction , anyways, the OS is of the last layers of abstraction on the OS. 
+
+# GNU linux tools used for develop 
+-> UNIX based operative system -> based on C language(created for this purpose)
+-> minix based on A MICROKERNEL ARCHITECTURE ¿? 
+
+# what it is a distribution?  -> differentes architectures or OS based on linux kernel. 
+# differentes between compilated and interpretared DEVELOP LANGUAGES. 
+
