@@ -1,3 +1,3 @@
 # CODE dir
 
-archiv lecture code
+archiv lectures code

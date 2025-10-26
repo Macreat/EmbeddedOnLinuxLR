@@ -87,8 +87,9 @@ source work/embeddedOnLinuxPYDevEnv/bin/activate
 
 - **Class notes** → [`content/lectures/`](./content/lectures/)
 - **Presentations** → [`content/classContent/`](./content/classContent/)
-- **interest papers** → [`content/papers/`](./content/papers/)
-- **code from class** → [`content/code/`](./content/code/)
+- **interest papers** → [`/papers/`](./content/papers/)
+- **code and courses from class** → [`code`](./devEnv/code/)
+- **work and projects** → [`work space`](./devEnv/work/)
 
 ### work in progress inside dev Env dir
 
