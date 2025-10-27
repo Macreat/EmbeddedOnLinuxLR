@@ -5,7 +5,7 @@ LDFLAGS := -lncurses
 
 SRC_DIR := src
 OBJ_DIR := build
-BIN_DIR := results
+BIN_DIR := compiled
 
 TARGET  := $(BIN_DIR)/sysmon
 SRC     := $(wildcard $(SRC_DIR)/*.c)
