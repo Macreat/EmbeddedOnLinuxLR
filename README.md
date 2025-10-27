@@ -105,8 +105,9 @@ source work/embeddedOnLinuxPYDevEnv/bin/activate
 ## Roadmap
 
 - [x] Repository structure and environment setup
-- [ ] Import lecture notes and materials
+- [x] Import lecture notes and materials
 - [ ] task as :
+      -rial time monitor resource
       -Kernel module exercise (heartbeat service)
       -Raspberry Pi deployment, conection and SSH access
       -Call-graph visualization in Python and C
