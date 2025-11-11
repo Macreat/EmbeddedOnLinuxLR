@@ -1,10 +1,10 @@
 #ifndef SENSOR_H
 #define SENSOR_H
 
-// Inicializa el sensor (semillas, archivos, etc.)
+// Initializes the sensor (opens file, seeds RNG, etc.)
 void sensor_init(void);
 
-// Lee y devuelve un valor del sensor (simulado)
+// Reads and returns a single sensor value (simulated)
 double sensor_read(void);
 
 #endif
