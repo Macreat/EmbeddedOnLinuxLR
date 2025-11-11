@@ -4,15 +4,15 @@ This directory only contains the **organizational skeleton** for the homework de
 
 ## Directory map
 
-| Path | Purpose |
-| --- | --- |
-| `sensor/` | Specs + workflow for creating `sensor.h/.c` with guarded declarations and a CSV/random backend. |
-| `actuators/` | Interface notes for `actuator.h` and the LED/Buzzer implementations that share one polymorphic API. |
-| `controller/` | Runbook for designing `ctl.c`, timers, and logging loop. |
-| `tests/` | Guidance on runtime validation, log capture, and binary inspection artifacts. |
-| `data/` | Placeholder for `sensor_feed.csv` or other input traces. |
-| `docs/` | Documentation deliverables (README, AI log, reflections, build notes). |
-| `build/` | Output bin/obj artifacts once compilation steps are executed (kept empty until builds run). |
+| Path          | Purpose                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| `sensor/`     | Specs + workflow for creating `sensor.h/.c` with guarded declarations and a CSV/random backend.     |
+| `actuators/`  | Interface notes for `actuator.h` and the LED/Buzzer implementations that share one polymorphic API. |
+| `controller/` | Runbook for designing `ctl.c`, timers, and logging loop.                                            |
+| `tests/`      | Guidance on runtime validation, log capture, and binary inspection artifacts.                       |
+| `data/`       | Placeholder for `sensor_feed.csv` or other input traces.                                            |
+| `docs/`       | Documentation deliverables (README, AI log, reflections, build notes).                              |
+| `build/`      | Output bin/obj artifacts once compilation steps are executed (kept empty until builds run).         |
 
 ## Workflow overview
 
