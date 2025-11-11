@@ -10,19 +10,19 @@ extern Actuator BUZZER;
 
 int main(void)
 {
-    printf("Testing actuators...");
+       printf("Testing actuators...");
 
-    LED.activate();
-    BUZZER.activate();
+       LED.activate();
+       BUZZER.activate();
 
-    printf("LED status: %d | BUZZER state: %d\n",
-           LED.status(), BUZZER.status());
+       printf("LED status: %d | BUZZER state: %d\n",
+              LED.status(), BUZZER.status());
 
-    LED.deactivate();
-    BUZZER.deactivate();
+       LED.deactivate();
+       BUZZER.deactivate();
 
-    printf("LED state: %d | BUZZER state: %d\n",
-           LED.status(), BUZZER.status());
+       printf("LED state: %d | BUZZER state: %d\n",
+              LED.status(), BUZZER.status());
 
-    return 0;
+       return 0;
 }
