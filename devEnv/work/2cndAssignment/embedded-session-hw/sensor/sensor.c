@@ -1,23 +1,24 @@
 #include "sensor.h"
 #include <pigpio.h>
-#include <stdio.h> // <-- ADD THIS
+#include <stdio.h>
 
-#define SPI_CHANNEL 0
+#define BUTTON_PIN 22 // GPIO 22 (pin 15 on the board)
 
 void sensor_init(void)
 {
     if (gpioInitialise() < 0)
         perror("pigpio init failed");
+
+    gpioSetMode(BUTTON_PIN, PI_INPUT);
+    gpioSetPullUpDown(BUTTON_PIN, PI_PUD_DOWN); // enable internal pull-down
 }
 
 double sensor_read(void)
 {
-    int handle = spiOpen(SPI_CHANNEL, 1000000, 0); // 1 MHz, mode 0
-    char tx[] = {1, (8 + 0) << 4, 0};
-    char rx[3];
-    spiXfer(handle, tx, rx, 3);
-    spiClose(handle);
+    int state = gpioRead(BUTTON_PIN); // 1 = pressed, 0 = released
 
-    int value = ((rx[1] & 3) << 8) | rx[2];
-    return (value / 1023.0) * 100.0;
+    if (state)
+        return 10.0; // simulate "dark" → low light
+    else
+        return 90.0; // simulate "bright" → high light
 }
