@@ -1,23 +1,21 @@
 #include "actuator.h"
-#include <stdio.h>
+#include <pigpio.h>
+#include <stdio.h> // <-- ADD THIS
 
-static int ledState = 0; // define internal LED state
+#define LED_PIN 17
 
-static void lenOn(void)
+void led_init(void)
 {
-    ledState = 1;
-    printf("[LED] ON\n");
+    if (gpioInitialise() < 0)
+        perror("pigpio init failed");
+    gpioSetMode(LED_PIN, PI_OUTPUT);
 }
-static void lenOff(void)
-{
-    ledState = 0;
-    printf("[LED] OFF\n");
-}
-static int ledStatus(void) { return ledState; }
 
-// define a public instance of the actuator interface
+static void led_on(void) { gpioWrite(LED_PIN, 1); }
+static void led_off(void) { gpioWrite(LED_PIN, 0); }
+static int led_status(void) { return gpioRead(LED_PIN); }
 
 Actuator LED = {
-    .activate = lenOn,
-    .deactivate = lenOff,
-    .status = ledStatus};
+    .activate = led_on,
+    .deactivate = led_off,
+    .status = led_status};

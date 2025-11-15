@@ -1,8 +1,9 @@
-#define _POSIX_C_SOURCE 199309L // enable POSIX time APIs
+#define _POSIX_C_SOURCE 199309L // enable POSIX time functions
 
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <pigpio.h>
 
 #include "../sensor/sensor.h"
 #include "../actuators/actuator.h"
@@ -11,7 +12,11 @@
 extern Actuator LED;
 extern Actuator BUZZER;
 
-// Helper: sleep in milliseconds
+// Optional initialization prototypes from each actuator
+void led_init(void);
+void buzzer_init(void);
+
+// Helper: millisecond sleep
 static void msleep(long ms)
 {
     struct timespec ts;
@@ -22,16 +27,27 @@ static void msleep(long ms)
 
 int main(void)
 {
-    sensor_init();           // initialize sensor module
+    // Initialize pigpio library (required once per process)
+    if (gpioInitialise() < 0)
+    {
+        fprintf(stderr, "Failed to initialize pigpio\n");
+        return 1;
+    }
+
+    // Initialize each module
+    sensor_init();
+    led_init();
+    buzzer_init();
+
     double threshold = 40.0; // activation threshold (light percentage)
     double value;
     struct timespec now;
 
-    printf("Starting closed-loop controller...\n");
+    printf("Starting closed-loop controller (pigpio hardware version)...\n");
 
     while (1)
     {
-        value = sensor_read(); // get sensor value
+        value = sensor_read(); // read LDR value (0–100%)
         clock_gettime(CLOCK_MONOTONIC, &now);
 
         printf("[%ld.%03ld] Sensor=%.2f ",
@@ -54,5 +70,8 @@ int main(void)
 
         msleep(100); // sample every 100 ms
     }
+
+    // Cleanup (if program ever exits)
+    gpioTerminate();
     return 0;
 }

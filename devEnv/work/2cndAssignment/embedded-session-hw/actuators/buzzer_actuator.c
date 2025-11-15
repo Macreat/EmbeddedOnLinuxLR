@@ -1,23 +1,19 @@
 #include "actuator.h"
-#include <stdio.h>
+#include <pigpio.h>
+#include <stdio.h> // <-- ADD THIS
 
-static int buzzerState = 0;
+#define BUZZ_PIN 27
 
-static void buzzerOn(void)
+void buzzer_init(void)
 {
-    buzzerState = 1;
-    printf("Buzzer ON\n");
+    gpioSetMode(BUZZ_PIN, PI_OUTPUT);
 }
-static void buzzerOff(void)
-{
-    buzzerState = 0;
-    printf("Buzzer OFF\n");
-}
-static int buzzerStatus(void) { return buzzerState; }
 
-// define an instance of Actuator for Buzzer
+static void buzzer_on(void) { gpioWrite(BUZZ_PIN, 1); }
+static void buzzer_off(void) { gpioWrite(BUZZ_PIN, 0); }
+static int buzzer_status(void) { return gpioRead(BUZZ_PIN); }
 
 Actuator BUZZER = {
-    .activate = buzzerOn,
-    .deactivate = buzzerOff,
-    .status = buzzerStatus};
+    .activate = buzzer_on,
+    .deactivate = buzzer_off,
+    .status = buzzer_status};
