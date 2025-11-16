@@ -1,14 +1,28 @@
 # Testing & Verification Notes
 
-Use this folder to capture evidence that the controller works as required.
+This folder is used to capture evidence that the controller and modules behave correctly under SIMULATION before deployment on hardware.
 
-## Planned artifacts
-- `sample_run.log` – streaming output from `./build/ctl64 [threshold] [iterations]`.
-- `ctl64.file.txt` / `ctl64.readelf.txt` – copies of `file` and `readelf -h` output for documentation.
-- Additional CSVs or scripts for regression tests.
+## Included test programs
 
-## Workflow
-1. After implementing code, run unit benches (if added) plus an end-to-end session with a deterministic sensor feed.
-2. Save terminal output to log files and reference them from the top-level README.
-3. For 32-bit builds, document any toolchain/setup steps and attach inspection logs alongside the 64-bit ones.
-4. Keep this README updated with the testing matrix so reviewers can reconstruct the validation process quickly.
+| File               | Purpose                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| `test_sensor.c`    | Reads 10 simulated sensor values using `sensor_read()` (from CSV or random source).            |
+| `test_actuators.c` | Toggles LED and buzzer through the shared `Actuator` interface to verify polymorphic behavior. |
+
+### Example commands
+
+```bash
+# Compile and run sensor test
+gcc -Wall -Wextra -std=c11 sensor/sensor.c tests/test_sensor.c -o tests/test_sensor
+./tests/test_sensor
+
+# Compile and run actuator test
+gcc -Wall -Wextra -std=c11 actuators/led_actuator.c actuators/buzzer_actuator.c tests/test_actuators.c -o tests/test_actuators
+./tests/test_actuators
+```
+
+## notes
+
+-Keep raw outputs here to document reproducible runs.
+
+-Tests validate that sensor readings, actuator activations, and linking between modules work before full system integration.

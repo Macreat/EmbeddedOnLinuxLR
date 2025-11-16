@@ -1,22 +1,40 @@
-# Actuator Interface Plan
+# Actuators Module
 
-This folder will host the polymorphic actuator interface plus the LED and buzzer backends required by the assignment.
+This directory defines and implements the **actuator interface layer** of the closed-loop controller.  
+It demonstrates _polymorphism in C_ through the use of **function pointers inside a struct**, allowing different actuator backends (LED, buzzer, etc.) to share a unified API.
 
-## Files to create
-- `actuator.h` – declares `struct actuator`, a `void *params` payload, and `activate/deactivate/status` function pointers.
-- `led_actuator.c` – implements the interface for GPIO/LED behavior.
-- `buzzer_actuator.c` – implements the interface for buzzer/PWM behavior.
+---
 
-## Workflow
-1. **Design the struct**
-   - Provide typedefs for the function pointers.
-   - Keep the struct self-contained so callers only interact through the API; no controller-specific state leaks in.
-2. **Backend allocation**
-   - Each backend should expose `*_actuator_create/destroy` helpers that allocate/free any private state.
-   - Document expected labels/pins in this README once hardware mappings are chosen.
-3. **Polymorphic usage**
-   - Ensure both implementations fill the same function pointer slots so the controller can call `act->activate(act)` generically.
-4. **Testing hooks**
-   - Outline how to stub the functions for unit tests (e.g., fake params structs recorded under `tests/`).
+## Polymorphism in C
 
-Capture any open questions (e.g., hardware abstraction decisions) below before writing code.
+C does not have classes, but we can achieve _polymorphism_ by embedding **function pointers** inside a struct.
+
+## Hardware mapping
+
+```
+
+
+| Actuator | GPIO (BCM) | Pin | Description      |
+| -------- | ---------- | --- | ---------------- |
+| LED      | 17         | 11  | Visual indicator |
+| Buzzer   | 27         | 13  | Audible alert    |
+
+Both are configured as outputs in their respective \*\_init() functions.
+
+```
+
+## Usage
+
+These files are compiled and linked with the controller:
+
+```
+gcc -Wall -Wextra -std=c11 controller/ctl.c \
+actuators/led_actuator.c actuators/buzzer_actuator.c ...
+
+```
+
+## Notes
+
+-Keep actuator logic self-contained: GPIO setup and cleanup should be done locally.
+
+-Adding a new actuator (e.g., fan, relay) only requires writing a new .c file and instantiating a new Actuator object — the controller code remains unchanged.

@@ -1,19 +1,19 @@
-# Sensor Module Checklist
+# Sensor Blueprint
 
-Goal: provide `sensor.h`/`sensor.c` that expose `sensor_init(void)` and `sensor_read(void)` with clean separation of declarations and definitions.
+Implements `sensor.h` and `sensor.c`. Provides an abstraction for light sensing using either simulation or hardware SPI.
 
-## Implementation plan
-1. **Header guard + externs**
-   - Define `#ifndef SENSOR_H`…`#endif`.
-   - Declare the two API functions only; forbid global state in the header.
-2. **Data source strategy**
-   - Default input: `../data/sensor_feed.csv`.
-   - Allow overrides via environment variable (e.g., `SENSOR_FEED`).
-   - If the CSV is missing/empty, fall back to pseudo-random values.
-3. **State management**
-   - Keep static buffers/indices inside `sensor.c`.
-   - Ensure `sensor_init` guards against multiple initialization calls.
-4. **Testing hooks**
-   - Document how to add deterministic fixtures under `tests/` for replay.
+## Key functions
 
-Before committing code, document any decisions or TODOs here so reviewers know what to expect once the implementation lands.
+- `void sensor_init(void);`
+- `double sensor_read(void);` // returns 0–100%
+
+## Modes
+
+- **Simulation:** replay CSV from `../data/sensor_feed.csv`.
+- **Hardware:** read from MCP3008 over SPI (via `pigpio`).
+
+## Notes
+
+- Guard all headers with `#ifndef SENSOR_H`.
+- Return percentage scaled from ADC (10-bit → 0–100).
+- Keep state (file handle or SPI handle) static within `sensor.c`.
