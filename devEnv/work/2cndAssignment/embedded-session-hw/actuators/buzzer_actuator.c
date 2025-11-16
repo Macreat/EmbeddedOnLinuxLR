@@ -2,7 +2,7 @@
 #include <pigpio.h>
 #include <stdio.h> // <-- ADD THIS
 
-#define BUZZ_PIN 27
+#define BUZZ_PIN 27 
 
 void buzzer_init(void)
 {
