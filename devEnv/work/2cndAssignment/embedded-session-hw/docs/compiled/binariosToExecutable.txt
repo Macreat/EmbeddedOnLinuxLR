@@ -1,0 +1,7 @@
+gcc \
+    buildProof/ctl.o \
+    buildProof/led_actuator.o \
+    buildProof/buzzer_actuator.o \
+    buildProof/sensor.o \
+    -o buildProof/ctl \
+    -lpigpio -lrt -lpthread
