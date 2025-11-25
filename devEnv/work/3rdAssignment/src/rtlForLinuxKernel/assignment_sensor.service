@@ -1,0 +1,14 @@
+[Unit]
+Description=Load assignment_sensor kernel module
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/insmod /path/to/assignment_sensor.ko
+ExecStop=/sbin/rmmod assignment_sensor
+
+[Install]
+WantedBy=multi-user.target
+
+
