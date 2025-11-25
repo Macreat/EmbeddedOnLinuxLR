@@ -93,6 +93,7 @@ static void __exit assignment_sensor_exit(void)
 module_init(assignment_sensor_init);
 module_exit(assignment_sensor_exit);
 
+// module
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("macreat");
 MODULE_DESCRIPTION("Minimal mock sensor kernel module for assignment");
