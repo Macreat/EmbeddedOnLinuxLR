@@ -1,0 +1,31 @@
+{
+  "model": "ChatGPT  (GPT-5)",
+  "provider": "OpenAI",
+  "date": "2025-11-20-25",
+  "usage": {
+    "purpose": "Assistance during the design, implementation, documentation, and debugging of the assignment-sensor systemd service.",
+    "medium": "Web interface and CLI interactions",
+    "human_verification": "All AI-provided code, tests, and documentation were manually reviewed, validated, and corrected by the student before inclusion in the final submission."
+  },
+  "context": {
+    "files_influenced": [
+      "src/assignment_sensor.c",
+      "src/rtl/assignment_sensor.c",
+      "src/rtl/main.c",
+      "systemd/assignment-sensor.service",
+      "Makefile",
+      "README.md",
+      "tests/testToImplement.md"
+    ]
+  },
+   "tools": [
+    {
+      "name": "ChatGPT Codex (GPT-5)",
+      "provider": "OpenAI",
+      "date": "2025-11-20-25",
+      "medium": "Codex CLI"
+    }
+  ]
+}
+
+
