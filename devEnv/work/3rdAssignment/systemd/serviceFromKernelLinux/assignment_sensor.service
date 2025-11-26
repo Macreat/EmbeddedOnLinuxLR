@@ -1,0 +1,15 @@
+[Unit]
+Description=Load assignment_sensor kernel module
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/modprobe assignment_sensor
+ExecStop=/sbin/modprobe -r assignment_sensor
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+
+

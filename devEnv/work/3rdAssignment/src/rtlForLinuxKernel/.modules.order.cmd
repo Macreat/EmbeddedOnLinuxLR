@@ -1,0 +1,1 @@
+savedcmd_/home/raspi/Desktop/code/sshRep/EmbeddedOnLinuxLR/devEnv/work/3rdAssignment/src/rtlForLinuxKernel/modules.order := {   echo /home/raspi/Desktop/code/sshRep/EmbeddedOnLinuxLR/devEnv/work/3rdAssignment/src/rtlForLinuxKernel/assignment_sensor.o; :; } > /home/raspi/Desktop/code/sshRep/EmbeddedOnLinuxLR/devEnv/work/3rdAssignment/src/rtlForLinuxKernel/modules.order
