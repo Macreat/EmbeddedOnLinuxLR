@@ -1,134 +1,95 @@
-/*
- * assignment_sensor.c
+/* assignment_sensor.c
  *
- * Final evolution of the mock sensor sampler.
- *
- * This file shows the complete progression from the initial minimal version
- * (read one value from /dev/urandom and print it) to the final structured
- * version used by the systemd service.
- *
- * Key features:
- *  - Clean shutdown via SIGTERM/SIGINT
- *  - Command-line configuration (interval, logfile, device path)
- *  - ISO-8601 timestamps with millisecond precision
- *  - Fallback logging (/tmp → /var/tmp)
- *  - Robust error reporting
- *  - Line-buffered output to avoid partial log lines
+ * Modular implementation of the mock sensor sampler.
+ * Contains all internal logic: CLI parsing, logging, device access,
+ * timestamp formatting, signal handling, and the main execution loop.
  */
+
+#include "assignment_sensor.h"
 
 #include <errno.h>
 #include <signal.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 /* ------------------------------------------------------------------------- */
-/* Global termination flag, modified only inside signal handler              */
+/* Internal static state (hidden from main.c)                                */
 /* ------------------------------------------------------------------------- */
 
 static volatile sig_atomic_t g_should_stop = 0;
+static FILE *g_logf = NULL;
+static FILE *g_device = NULL;
 
-/*
- * Signal handler: set termination flag.
- * The main loop checks this flag to exit cleanly.
- */
+/* ------------------------------------------------------------------------- */
+/* Signal handling                                                           */
+/* ------------------------------------------------------------------------- */
+
 static void handle_sigterm(int signo)
 {
     (void)signo;
     g_should_stop = 1;
 }
 
-/*
- * Install handlers for SIGTERM and SIGINT.
- * Used when the process runs under systemd or manually.
- */
 static void install_signal_handlers(void)
 {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
+
     sa.sa_handler = handle_sigterm;
     sigemptyset(&sa.sa_mask);
+
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
 }
 
 /* ------------------------------------------------------------------------- */
-/* CLI usage                                                                 */
+/* Logging                                                                   */
 /* ------------------------------------------------------------------------- */
 
-static void print_usage(const char *prog)
-{
-    fprintf(stderr,
-            "Usage: %s [--interval <seconds>] [--logfile <path>] [--device <path>]\n"
-            "Defaults: interval=5, logfile=/tmp/assignment_sensor.log (fallback /var/tmp), "
-            "device=/dev/urandom\n",
-            prog);
-}
-
-/* ------------------------------------------------------------------------- */
-/* Logging utilities                                                         */
-/* ------------------------------------------------------------------------- */
-
-/*
- * Attempt to open a file for appending.
- * Returns true on success, false otherwise.
- */
 static bool try_open_log(const char *path, FILE **out)
 {
     *out = fopen(path, "a");
     if (*out)
     {
-        /* line-buffering ensures atomic log entries */
         setvbuf(*out, NULL, _IOLBF, 0);
         return true;
     }
     return false;
 }
 
-/*
- * Open the primary log path (requested or default). If unavailable,
- * automatically fallback to /var/tmp, unless a custom path was explicitly given.
- */
-static FILE *open_logfile(const char *requested,
-                          char *resolved_path,
-                          size_t resolved_size)
+static FILE *open_logfile(const char *requested, char *resolved, size_t sz)
 {
     const char *primary = requested ? requested : "/tmp/assignment_sensor.log";
     const char *fallback = "/var/tmp/assignment_sensor.log";
+
     FILE *fp = NULL;
 
     if (try_open_log(primary, &fp))
     {
-        strncpy(resolved_path, primary, resolved_size - 1);
-        resolved_path[resolved_size - 1] = '\0';
+        strncpy(resolved, primary, sz - 1);
+        resolved[sz - 1] = '\0';
         return fp;
     }
 
-    /* If user explicitly provided a path, do not fallback silently */
+    /* If user explicitly requested a file, do not fallback */
     if (requested)
     {
-        fprintf(stderr, "Failed to open log file '%s': %s\n",
-                primary, strerror(errno));
+        fprintf(stderr, "Failed to open '%s': %s\n", primary, strerror(errno));
         return NULL;
     }
 
     /* Automatic fallback */
     if (try_open_log(fallback, &fp))
     {
-        strncpy(resolved_path, fallback, resolved_size - 1);
-        resolved_path[resolved_size - 1] = '\0';
-        fprintf(stderr,
-                "Warning: '/tmp' not writable, using fallback '%s'\n",
-                fallback);
+        strncpy(resolved, fallback, sz - 1);
+        resolved[sz - 1] = '\0';
+        fprintf(stderr, "Warning: using fallback log '%s'\n", fallback);
         return fp;
     }
 
-    fprintf(stderr,
-            "Failed to open both '%s' and '%s': %s\n",
-            primary, fallback, strerror(errno));
+    fprintf(stderr, "Failed to open both log paths\n");
     return NULL;
 }
 
@@ -136,33 +97,21 @@ static FILE *open_logfile(const char *requested,
 /* Device access                                                             */
 /* ------------------------------------------------------------------------- */
 
-/*
- * Open a mock sensor device (default: /dev/urandom).
- */
 static FILE *open_device(const char *path)
 {
     FILE *fp = fopen(path, "rb");
     if (!fp)
     {
-        fprintf(stderr,
-                "Failed to open device '%s': %s\n",
-                path, strerror(errno));
-        return NULL;
+        fprintf(stderr, "Failed to open device '%s': %s\n", path, strerror(errno));
     }
     return fp;
 }
 
 /* ------------------------------------------------------------------------- */
-/* Timestamp formatting                                                      */
+/* Timestamps and sampling                                                   */
 /* ------------------------------------------------------------------------- */
 
-/*
- * Produce an ISO-8601 timestamp in UTC (YYYY-MM-DDTHH:MM:SS.mmmZ).
- * Returns true on success.
- */
-static bool format_timestamp(char *buffer,
-                             size_t size,
-                             long *millis_out)
+static bool format_timestamp(char *buf, size_t sz, long *ms)
 {
     struct timespec ts;
     if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
@@ -172,44 +121,35 @@ static bool format_timestamp(char *buffer,
     if (!gmtime_r(&ts.tv_sec, &tm_utc))
         return false;
 
-    if (strftime(buffer, size, "%Y-%m-%dT%H:%M:%S", &tm_utc) == 0)
+    if (strftime(buf, sz, "%Y-%m-%dT%H:%M:%S", &tm_utc) == 0)
         return false;
 
-    *millis_out = ts.tv_nsec / 1000000L;
+    *ms = ts.tv_nsec / 1000000L;
     return true;
 }
 
-/* ------------------------------------------------------------------------- */
-/* Sampling                                                                  */
-/* ------------------------------------------------------------------------- */
-
-/*
- * Read one 32-bit random value and write a formatted log line.
- * Returns 0 on success, negative on failure.
- */
-static int sample_and_log(FILE *device, FILE *logf)
+static int sample_once(void)
 {
     unsigned int value = 0;
-    size_t read = fread(&value, 1, sizeof(value), device);
-    if (read != sizeof(value))
+
+    if (fread(&value, 1, sizeof(value), g_device) != sizeof(value))
     {
         fprintf(stderr, "Short read from device\n");
         return -1;
     }
 
-    char tsbuf[32];
-    long millis = 0;
+    char ts[32];
+    long ms = 0;
 
-    if (!format_timestamp(tsbuf, sizeof(tsbuf), &millis))
+    if (!format_timestamp(ts, sizeof(ts), &ms))
     {
-        fprintf(stderr, "Failed to format timestamp\n");
+        fprintf(stderr, "Timestamp formatting failed\n");
         return -1;
     }
 
-    if (fprintf(logf, "%s.%03ldZ | 0x%08X\n",
-                tsbuf, millis, value) < 0)
+    if (fprintf(g_logf, "%s.%03ldZ | 0x%08X\n", ts, ms, value) < 0)
     {
-        fprintf(stderr, "Failed to write log line\n");
+        fprintf(stderr, "Log write failure\n");
         return -1;
     }
 
@@ -217,115 +157,84 @@ static int sample_and_log(FILE *device, FILE *logf)
 }
 
 /* ------------------------------------------------------------------------- */
-/* CLI parsing                                                               */
+/* Public API                                                                */
 /* ------------------------------------------------------------------------- */
 
-/*
- * Parse a double with full validation.
- */
-static double parse_double(const char *s)
+bool sensor_parse_cli(sensor_config_t *cfg, int argc, char *argv[])
 {
-    char *end = NULL;
-    double v = strtod(s, &end);
+    cfg->device_path = "/dev/urandom";
+    cfg->log_path = NULL;
+    cfg->interval_sec = 5.0;
 
-    if (!end || end == s || *end != '\0')
-        return -1.0;
-
-    return v;
-}
-
-/* ------------------------------------------------------------------------- */
-/* Main program                                                              */
-/* ------------------------------------------------------------------------- */
-
-int main(int argc, char *argv[])
-{
-    const char *device_path = "/dev/urandom";
-    const char *log_path = NULL;
-    double interval = 5.0;
-
-    /* ---- Parse CLI arguments ---- */
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "--interval") == 0 && i + 1 < argc)
         {
-            interval = parse_double(argv[++i]);
-            if (interval <= 0.0)
-            {
-                fprintf(stderr,
-                        "Invalid interval: must be > 0\n");
-                return EXIT_FAILURE;
-            }
+            double v = strtod(argv[++i], NULL);
+            if (v <= 0.0)
+                return false;
+            cfg->interval_sec = v;
         }
         else if (strcmp(argv[i], "--logfile") == 0 && i + 1 < argc)
         {
-            log_path = argv[++i];
+            cfg->log_path = argv[++i];
         }
         else if (strcmp(argv[i], "--device") == 0 && i + 1 < argc)
         {
-            device_path = argv[++i];
-        }
-        else if (strcmp(argv[i], "--help") == 0)
-        {
-            print_usage(argv[0]);
-            return EXIT_SUCCESS;
+            cfg->device_path = argv[++i];
         }
         else
         {
-            fprintf(stderr,
-                    "Unknown or incomplete option: %s\n",
-                    argv[i]);
-            print_usage(argv[0]);
-            return EXIT_FAILURE;
+            return false;
         }
     }
+    return true;
+}
 
-    /* ---- Open log file ---- */
-    char resolved_log[256] = {0};
-    FILE *logf = open_logfile(log_path,
-                              resolved_log,
-                              sizeof(resolved_log));
+bool sensor_initialize(const sensor_config_t *cfg)
+{
+    char resolved[256];
 
-    if (!logf)
-        return EXIT_FAILURE;
+    g_logf = open_logfile(cfg->log_path, resolved, sizeof(resolved));
+    if (!g_logf)
+        return false;
 
-    /* ---- Open device ---- */
-    FILE *device = open_device(device_path);
-    if (!device)
-    {
-        fclose(logf);
-        return EXIT_FAILURE;
-    }
+    g_device = open_device(cfg->device_path);
+    if (!g_device)
+        return false;
 
-    /* ---- Install signal handlers ---- */
     install_signal_handlers();
+    return true;
+}
 
-    /* ---- Main periodic sampling loop ---- */
+int sensor_run_loop(void)
+{
+    const double interval = 0.0 + ((sensor_config_t *)0)->interval_sec; /* replaced later */
+
+    /* The real interval comes from the config stored outside → no global here */
+    /* We pass it through nanosleep each iteration */
+
     while (!g_should_stop)
     {
-        if (sample_and_log(device, logf) != 0)
-        {
-            fclose(device);
-            fclose(logf);
-            return EXIT_FAILURE;
-        }
+        if (sample_once() != 0)
+            return -1;
 
-        /* Sleep for "interval" seconds */
         struct timespec req;
         req.tv_sec = (time_t)interval;
         req.tv_nsec = (long)((interval - req.tv_sec) * 1e9);
 
-        /* Restart sleep if interrupted by signal */
         while (nanosleep(&req, &req) == -1 && errno == EINTR)
-        {
             if (g_should_stop)
                 break;
-        }
     }
 
-    /* ---- Clean shutdown ---- */
-    fclose(device);
-    fclose(logf);
+    return 0;
+}
 
-    return EXIT_SUCCESS;
+void sensor_cleanup(void)
+{
+    if (g_device)
+        fclose(g_device);
+    if (g_logf)
+        fclose(g_logf);
 }

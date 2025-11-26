@@ -1,12 +1,13 @@
 [Unit]
 Description=Mock sensor logger for assignment
-After=multi-user.target
+After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/assignment-sensor --interval 3 --logfile /tmp/assignment_sensor.log
+ExecStart=/usr/local/bin/assignment-sensor --interval 5
 Restart=on-failure
 RestartSec=2
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
