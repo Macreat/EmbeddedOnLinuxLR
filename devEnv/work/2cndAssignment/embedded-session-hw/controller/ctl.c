@@ -6,7 +6,7 @@
 #include <pigpio.h>
 
 #include "ctl.h"
-#include "mqtt_client.h"
+#include "mqtt.h"
 
 // Sensores
 #include "sensors/dht11.h"
@@ -110,6 +110,9 @@ void controller_init()
 
     printf("Inicializando MQTT...\n");
     mqtt_init("192.168.1.120", 1883); // Cambia IP del broker
+    mqtt_set_callback([](const char *topic, const char *msg){
+        printf("Recibido desde MQTT: [%s] %s\n", topic, msg);
+    });
 }
 
 
