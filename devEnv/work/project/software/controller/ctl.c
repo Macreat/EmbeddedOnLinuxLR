@@ -38,6 +38,7 @@
 #define PIN_GATE2 25
 
 static struct mosquitto *mq = NULL;
+// mosquitto protocol
 
 typedef struct
 {
@@ -92,6 +93,12 @@ void controller_init(void)
     gpioSetMode(PIN_GATE2, PI_OUTPUT);
 
     actuators_set_normal();
+    mosquitto_lib_init();
+    mq = mosquitto_new("sensor_app", true, NULL);
+    if (!mq || mosquitto_connect(mq, "127.0.0.1", 1883, 60) != MOSQ_ERR_SUCCESS)
+    {
+        fprintf(stderr, "MQTT connect failed\n");
+    }
 }
 
 static Measurements read_all_sensors(void)
@@ -129,6 +136,19 @@ static void apply_logic(const Measurements *m)
         actuators_set_normal(); // Verde
     }
 }
+// now publish results
+static void publish_status(const Measurements *m, const char *color)
+{
+    if (!mq)
+        return;
+    char json[256];
+    snprintf(json, sizeof(json),
+             "{\"mq2\":%d,\"mq135\":%d,\"flame\":%d,"
+             "\"temp\":%.1f,\"hum\":%.1f,\"dht_ok\":%d,\"color\":\"%s\"}",
+             m->gas_mq2, m->gas_mq135, m->flame,
+             m->temp_c, m->hum, m->dht_ok, color);
+    mosquitto_publish(mq, NULL, "sensores/estado", strlen(json), json, 0, false);
+}
 
 // for monitor actuators
 static const char *logic_color(const Measurements *m)
@@ -143,30 +163,41 @@ static const char *logic_color(const Measurements *m)
 }
 void controller_loop(void)
 {
+    int tick = 0;
     for (;;)
     {
         Measurements m = read_all_sensors();
         apply_logic(&m);
         const char *color = logic_color(&m);
-        printf("MQ2=%d MQ135=%d FLAME=%d | ", m.gas_mq2, m.gas_mq135, m.flame);
-        if (m.dht_ok)
-            printf("T=%.1fC H=%.1f%% | ", m.temp_c, m.hum);
-        else
-            printf("DHT11 invalid | ");
 
-        printf("LED=%s BUZZER=%d GATE1=%d GATE2=%d\n",
-               color,
-               gpioRead(PIN_BUZZER),
-               gpioRead(PIN_GATE1),
-               gpioRead(PIN_GATE2));
+        if (tick % 10 == 0)
+        { // cada 5 s si delay es 500 ms
+          // tu printf actual…
 
-        gpioDelay(5000000); // 500 ms
+            printf("MQ2=%d MQ135=%d FLAME=%d | ", m.gas_mq2, m.gas_mq135, m.flame);
+            if (m.dht_ok)
+                printf("T=%.1fC H=%.1f%% | ", m.temp_c, m.hum);
+            else
+                printf("DHT11 invalid | ");
+
+            printf("LED=%s BUZZER=%d GATE1=%d GATE2=%d\n",
+                   color,
+                   gpioRead(PIN_BUZZER),
+                   gpioRead(PIN_GATE1),
+                   gpioRead(PIN_GATE2));
+            // and publish
+            publish_status(&m, color);
+        }
+        tick++;
+        gpioDelay(500000);
+        if (mq)
+            mosquitto_loop(mq, 0, 1);
     }
 }
 
 int main(void)
 {
     controller_init();
-    controller_loop(); // bucle infinito dentro
+    controller_loop(); // bucle infinito dentro 5000000
     return 0;
 }
