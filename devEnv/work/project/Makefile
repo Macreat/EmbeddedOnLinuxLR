@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 CC     := cc
 CFLAGS := -O2 -Wall -Wextra -pedantic -std=c11
-LDLIBS := -lpigpio -lrt -lpthread
+LDLIBS := -lpigpio -lrt -lpthread -lmosquitto
 
 SRC_DIR   := software
 BUILD_DIR := build
@@ -19,7 +19,15 @@ OBJ := \
 	$(BUILD_DIR)/buzzer_actuator.o \
 	$(BUILD_DIR)/led_actuator.o \
 	$(BUILD_DIR)/ctl.o \
+	$(BUILD_DIR)/mq135.o \
+	$(BUILD_DIR)/mq2.o \
+	$(BUILD_DIR)/dht11.o \
+
+	$(BUILD_DIR)/ky026.o \
+
+
 	$(BUILD_DIR)/sensor.o
+	
 
 # Link final
 $(BUILD_DIR)/$(BINARY): $(OBJ)
@@ -45,6 +53,23 @@ $(BUILD_DIR)/ctl.o: $(SRC_DIR)/controller/ctl.c
 $(BUILD_DIR)/sensor.o: $(SRC_DIR)/sensor/sensor.c $(SRC_DIR)/sensor/sensor.h
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/mq135.o: $(SRC_DIR)/sensor/mq135.c $(SRC_DIR)/sensor/mq135.h
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/mq2.o: $(SRC_DIR)/sensor/mq2.c $(SRC_DIR)/sensor/mq2.h
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/dht11.o: $(SRC_DIR)/sensor/dht11.c $(SRC_DIR)/sensor/dht11.h
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+	
+$(BUILD_DIR)/ky026.o: $(SRC_DIR)/sensor/ky026.c $(SRC_DIR)/sensor/ky026.h
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 
 # -------------------------------------------
 

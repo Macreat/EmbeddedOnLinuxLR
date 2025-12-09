@@ -6,72 +6,136 @@
 #include <pigpio.h>
 
 #include "../sensor/sensor.h"
+#include "../sensor/mq2.h"
+
+#include "../sensor/mq135.h"
+
+#include "../sensor/dht11.h"
+
+#include "../sensor/ky026.h"
+
 #include "../actuators/actuator.h"
 
-// External actuator objects (defined in led_actuator.c and buzzer_actuator.c)
-extern Actuator LED;
-extern Actuator BUZZER;
+//
+// Ajusta a tu cableado (BCM)
+#define PIN_MQ2 5
+#define PIN_MQ135 6
+#define PIN_FLAME 13
+#define PIN_DHT11 17
 
-// Optional initialization prototypes from each actuator
-void led_init(void);
-void buzzer_init(void);
+#define PIN_LED_R 22
+#define PIN_LED_G 27
+#define PIN_LED_B 24
 
-// Helper: millisecond sleep
-static void msleep(long ms)
+#define PIN_BUZZER 18
+#define PIN_GATE1 23
+#define PIN_GATE2 25
+
+typedef struct
 {
-    struct timespec ts;
-    ts.tv_sec = ms / 1000;
-    ts.tv_nsec = (ms % 1000) * 1000000L;
-    nanosleep(&ts, NULL);
+    int gas_mq2;
+    int gas_mq135;
+    int flame;
+    double temp_c;
+    double hum;
+    int dht_ok;
+} Measurements;
+
+static void actuators_set_normal(void)
+{
+    led_actuator_set(LED_GREEN);
+    gpioWrite(PIN_BUZZER, 0);
+    gpioWrite(PIN_GATE1, 0);
+    gpioWrite(PIN_GATE2, 0);
 }
 
-int main(void)
+static void actuators_set_warning(void)
 {
-    // Initialize pigpio library (required once per process)
+    led_actuator_set(LED_BLUE);
+    gpioWrite(PIN_BUZZER, 1);
+    gpioWrite(PIN_GATE1, 1);
+    gpioWrite(PIN_GATE2, 0);
+}
+
+static void actuators_set_alarm(void)
+{
+    led_actuator_set(LED_RED);
+    gpioWrite(PIN_BUZZER, 1);
+    gpioWrite(PIN_GATE1, 1);
+    gpioWrite(PIN_GATE2, 1);
+}
+
+void controller_init(void)
+{
     if (gpioInitialise() < 0)
     {
-        fprintf(stderr, "Failed to initialize pigpio\n");
-        return 1;
+        perror("pigpio init failed");
+        return;
     }
 
-    // Initialize each module
-    sensor_init();
-    led_init();
-    buzzer_init();
+    mq2_init(PIN_MQ2, 0); // 0 si el módulo entrega LOW al detectar
+    mq135_init(PIN_MQ135, 0);
+    ky026_init(PIN_FLAME, 0); // muchos KY-026 son LOW al detectar
+    dht11_init(PIN_DHT11);
 
-    double threshold = 40.0; // activation threshold (light percentage)
-    double value;
-    struct timespec now;
+    led_actuator_init(PIN_LED_R, PIN_LED_G, PIN_LED_B, 1); // 1 para cátodo común
+    gpioSetMode(PIN_BUZZER, PI_OUTPUT);
+    gpioSetMode(PIN_GATE1, PI_OUTPUT);
+    gpioSetMode(PIN_GATE2, PI_OUTPUT);
 
-    printf("Starting closed-loop controller (pigpio hardware version)...\n");
+    actuators_set_normal();
+}
 
-    while (1)
+static Measurements read_all_sensors(void)
+{
+    Measurements m = {0};
+
+    MQ2_Data mq2 = mq2_read();
+    MQ135_Data mq135 = mq135_read();
+    KY026_Data fl = ky026_read();
+    DHT11_Data dht = dht11_read();
+
+    m.gas_mq2 = mq2.triggered;
+    m.gas_mq135 = mq135.triggered;
+    m.flame = fl.flame_detected;
+    m.dht_ok = dht.valid;
+    m.temp_c = dht.temp_c;
+    m.hum = dht.hum;
+    return m;
+}
+
+static void apply_logic(const Measurements *m)
+{
+    int gas = m->gas_mq2 || m->gas_mq135;
+    int heat = m->dht_ok && (m->temp_c >= 35.0 || m->hum >= 80.0);
+    if (m->flame || (gas && heat))
     {
-        value = sensor_read(); // read LDR value (0–100%)
-        clock_gettime(CLOCK_MONOTONIC, &now);
-
-        printf("[%ld.%03ld] Sensor=%.2f ",
-               now.tv_sec, now.tv_nsec / 1000000, value);
-
-        if (value < threshold) // low light → activate
-        {
-            LED.activate();
-            BUZZER.activate();
-            printf("→ ACTUATORS ON\n");
-        }
-        else // high light → deactivate with delay
-        {
-            printf("→ scheduling OFF\n");
-            sleep(1);
-            BUZZER.deactivate(); // after 1 s
-            sleep(4);
-            LED.deactivate(); // +4 s = 5 s total
-        }
-
-        msleep(100); // sample every 100 ms
+        actuators_set_alarm(); // Rojo: flama o gas+calor
     }
+    else if (gas || heat)
+    {
+        actuators_set_warning(); // Azul: gas o calor
+    }
+    else
+    {
+        actuators_set_normal(); // Verde
+    }
+}
 
-    // Cleanup (if program ever exits)
-    gpioTerminate();
-    return 0;
+void controller_loop(void)
+{
+    for (;;)
+    {
+        Measurements m = read_all_sensors();
+        apply_logic(&m);
+
+        printf("MQ2=%d MQ135=%d FLAME=%d | ",
+               m.gas_mq2, m.gas_mq135, m.flame);
+        if (m.dht_ok)
+            printf("T=%.1fC H=%.1f%%\n", m.temp_c, m.hum);
+        else
+            printf("DHT11 invalid\n");
+
+        gpioDelay(500000); // 500 ms
+    }
 }
