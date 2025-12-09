@@ -16,6 +16,8 @@
 
 #include "../actuators/actuator.h"
 
+#include "../actuators/led_actuator.h"
+
 //
 // Ajusta a tu cableado (BCM)
 #define PIN_MQ2 5
