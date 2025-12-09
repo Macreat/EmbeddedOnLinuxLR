@@ -138,7 +138,7 @@ void controller_loop(void)
         else
             printf("DHT11 invalid\n");
 
-        gpioDelay(500000); // 500 ms
+        gpioDelay(5000000); // 500 ms
     }
 }
 
