@@ -5,6 +5,10 @@
 #include <unistd.h>
 #include <pigpio.h>
 
+// PROCEEd with communication protocol
+#include <mosquitto.h>
+#include <string.h>
+
 #include "../sensor/sensor.h"
 #include "../sensor/mq2.h"
 
@@ -32,6 +36,8 @@
 #define PIN_BUZZER 18
 #define PIN_GATE1 23
 #define PIN_GATE2 25
+
+static struct mosquitto *mq = NULL;
 
 typedef struct
 {
@@ -124,19 +130,35 @@ static void apply_logic(const Measurements *m)
     }
 }
 
+// for monitor actuators
+static const char *logic_color(const Measurements *m)
+{
+    int gas = m->gas_mq2 || m->gas_mq135;
+    int heat = m->dht_ok && (m->temp_c >= 35.0 || m->hum >= 80.0);
+    if (m->flame || (gas && heat))
+        return "RED";
+    if (gas || heat)
+        return "BLUE";
+    return "GREEN";
+}
 void controller_loop(void)
 {
     for (;;)
     {
         Measurements m = read_all_sensors();
         apply_logic(&m);
-
-        printf("MQ2=%d MQ135=%d FLAME=%d | ",
-               m.gas_mq2, m.gas_mq135, m.flame);
+        const char *color = logic_color(&m);
+        printf("MQ2=%d MQ135=%d FLAME=%d | ", m.gas_mq2, m.gas_mq135, m.flame);
         if (m.dht_ok)
-            printf("T=%.1fC H=%.1f%%\n", m.temp_c, m.hum);
+            printf("T=%.1fC H=%.1f%% | ", m.temp_c, m.hum);
         else
-            printf("DHT11 invalid\n");
+            printf("DHT11 invalid | ");
+
+        printf("LED=%s BUZZER=%d GATE1=%d GATE2=%d\n",
+               color,
+               gpioRead(PIN_BUZZER),
+               gpioRead(PIN_GATE1),
+               gpioRead(PIN_GATE2));
 
         gpioDelay(5000000); // 500 ms
     }
