@@ -2,15 +2,16 @@
 
 ![WeatherShield](./docs/embeddedSystem.jpg)
 
-## Intelligent Edge Weather & Security System based on Raspberry Pi 4
+## Intelligent Edge Weather & Security System based on Raspberry Pi 3
 
 _Estación meteorológica inteligente y sistema de seguridad perimetral_  
 Diseñada para **monitorear variables ambientales, detectar humo y movimiento**, y **responder automáticamente** con alertas y actuadores en un **invernadero urbano**.  
 Desarrollada en el marco del curso **Linux Services in Embedded Systems**, guiado por el **Prof. Juan Bernardo Gómez-Mendoza (UNAL 2025-2)**.
 
 ![status](https://img.shields.io/badge/status-active-brightgreen)
-![platform](https://img.shields.io/badge/platform-Raspberry%20Pi%204-lightgrey)
+![platform](https://img.shields.io/badge/platform-Raspberry%20Pi%203-lightgrey)
 ![language](https://img.shields.io/badge/Made%20with-Python%203.11-blue)
+![language](https://img.shields.io/badge/Made%20with-C-00599C?logo=c&logoColor=white)
 ![supervision](https://img.shields.io/badge/Supervisor-Juan%20Bernardo%20Gómez--Mendoza-orange)
 ![license](https://img.shields.io/badge/license-Academic-lightblue)
 
@@ -40,25 +41,26 @@ WeatherShieldProject/
 │ └── prjDesign.md # Bitácora de diseño y diagramas HW/SW
 │
 ├── docs/ # Documentación técnica y de verificación
+├─────design/
+│ ├─── └── capstone-rubric.pdf # Rúbrica original y documentos de diseño
+│ ├──  └──  verification-plan.md # Estrategia de pruebas unitarias e integración
+│ ├──  └── risk-register.md # Riesgos y planes de mitigación
 │ ├── README.md # Guía general de trabajo y rúbrica
-│ ├── requirements.md # Problema, alcance, FR/NFR e interfaces
-│ ├── verification-plan.md # Estrategia de pruebas unitarias e integración
-│ ├── roadmap.md # Planificación semanal y criterios de aceptación
-│ ├── risk-register.md # Riesgos y planes de mitigación
-│ ├── rubric-traceability.md # Mapeo a la rúbrica académica
+│ ├────requirements/
+│ ├──  └── requirementsDesign.pdf # rúbcria de entrega
+│ ├──  └── requirements.md # Problema, alcance, FR/NFR e interfaces
 │ └── ...
 │
 ├── hardware/
 │ └── bom.md # Lista de materiales y estado de adquisición
-│
+│ └── mapPin.md # lista de pines usados en la raspberry pi
 ├── tests/
 │ ├── unit/ # Pruebas unitarias (pytest)
 │ ├── integration/ # Pruebas HIL (Hardware-in-the-loop)
 │ ├── evidence/ # Resultados, logs y capturas
 │ └── README.md
 │
-├── advances/
-│ └── capstone-rubric.pdf # Rúbrica original y entregables parciales
+
 │
 └── README.md # Este documento
 ```
@@ -95,29 +97,19 @@ WeatherShieldProject/
 | **1–2** | Validar requisitos, cerrar BOM y configurar entorno + CI. | Repositorio base, `weather-node.service` y drivers digitales. |
 | **3–4** | Telemetría digital + buffer + dashboard básico.           | Publicación MQTT y dashboard mínimo viable.                   |
 | **5–6** | Integrar sensores analógicos y motor de reglas.           | Activación automática de actuadores + alertas.                |
-| **7**   | Pruebas de resiliencia energética y seguridad.            | Autonomía ≥ 12 h, TLS y ACL en MQTT.                          |
+| **7**   | Pruebas de seguridad.                                     | TLS y ACL en MQTT.                                            |
 | **8**   | Pruebas en campo y documentación final.                   | Demo, reporte y evidencias completas.                         |
 
 > Consulta `docs/roadmap.md` para el desglose completo de tareas e hitos.
 
 ---
 
-## Cómo colaborar
-
-1. Lee `docs/requirements.md` antes de proponer nuevas historias o módulos.
-2. Abre **issues** vinculados a requisitos o riesgos para mantener la trazabilidad.
-3. Usa ramas `feature/<tema>` y pull requests con checklist de pruebas.
-4. Registra evidencia de pruebas en `tests/evidence/<id>` y actualiza `docs/rubric-traceability.md`.
-5. Mantén los commits descriptivos y un historial limpio (Git rebase o squash cuando sea necesario).
-
----
-
 ## Próximas acciones inmediatas
 
-- [ ] Validar métricas de éxito con el stakeholder (Semana 1).
-- [ ] Confirmar disponibilidad del hardware pendiente y actualizar `hardware/bom.md`.
-- [ ] Configurar pipeline CI (pytest + lint) y verificar `weather-node.service`.
-- [ ] Prototipar lectura de sensores BME280/BH1750/DS18B20 y almacenamiento en SQLite.
+- [x] Validar métricas de éxito con el stakeholder (Semana 1).
+- [x] Confirmar disponibilidad del hardware pendiente y actualizar `hardware/bom.md`.
+- [ ] Configurar pipeline y verificar servicios y comunicación entre nodos.
+- [ ] Prototipar lectura de sensores BME280/BH1750/DS18B20 y almacenamiento en SQLITE/... .
 - [ ] Documentar el flujo MQTT y reglas iniciales en `docs/verification-plan.md`.
 
 ---
@@ -142,10 +134,12 @@ Curso: _Linux Services in Embedded Systems_ – 2025-2
 
 GitHub: [@Macreat](https://github.com/Macreat)
 
+GitHub: [@FabianDJPerez](https://github.com/FabianDJPerez)
+
 ---
 
 ## Licencia
 
 Uso académico y de aprendizaje.
 
-© 2025 Mateo Almeida – Universidad Nacional de Colombia.
+© Universidad Nacional de Colombia.
