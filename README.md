@@ -25,7 +25,7 @@ Students explore embedded systems development through Linux, from kernel space t
 **Methodology**
 
 - Combination of **lectures + hands-on labs**.
-- Use of **virtual machines, WSL, Docker**, and **SBCs** (Raspberry Pi 4, BeaglePlay, Lichee RV, etc. (rapspberry pi used on this case)).
+- Use of **virtual machines, WSL, Docker**, and **SBCs** (Raspberry Pi 3/4, BeaglePlay, Lichee RV, etc. (rapspberry pi used on this case)).
 - Tasks include writing **C programs, shell scripts, kernel modules**, and **Python utilities**.
 
 ---
@@ -52,7 +52,7 @@ EmbeddedOnLinuxLR/
 ├── work/
 │   ├── work/
 │   ├── code/
-│   ├── PYDevEnv/
+├── project/
 │       ├── Include/ | Lib/ | nbs/ | Scripts/
 └── README.md
 ```
@@ -98,7 +98,6 @@ source work/embeddedOnLinuxPYDevEnv/bin/activate
 - **environments** → [`local development environment/`](./devEnv/)
 
 - **Reference** →
-- **Tools** →
 
 ---
 
@@ -106,12 +105,15 @@ source work/embeddedOnLinuxPYDevEnv/bin/activate
 
 - [x] Repository structure and environment setup
 - [x] Import lecture notes and materials
-- [ ] task as :
+- [x] task as :
       -rial time monitor resource
       -Kernel module exercise (heartbeat service)
       -Raspberry Pi deployment, conection and SSH access
       -Call-graph visualization in Python and C
-- [ ] project advances
+      -services implementation
+      -modular and polymorphism implementation
+- [x] project advances
+- [ ] project delivery
 
 ---
 

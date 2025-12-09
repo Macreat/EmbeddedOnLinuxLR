@@ -15,62 +15,13 @@
 
 > Como coordinador de seguridad agrícola, necesito una estación meteorológica inteligente que detecte humo, variaciones críticas de clima e intrusiones, para proteger al personal, los cultivos y la infraestructura sin depender de rondas manuales.
 
-### Diagrama de hardware (versión preliminar)
+### Diagrama de hardware
 
-```mermaid
-flowchart LR
-    PWR[UPS HAT 12V→5V] --> PI[Raspberry Pi 4 Model B]
-    SOLAR[Panel solar + cargador] --> PWR
-    BAT[Batería 12V 7Ah] --> PWR
-    PI -->|I2C| BME[BME280 Temp/Humedad/Presión]
-    PI -->|I2C| LUX[BH1750 Sensor de luz]
-    PI -->|GPIO| PIR[PIR HC-SR501 Movimiento]
-    PI -->|SPI| ADC[MCP3008 ADC]
-    ADC --> MQ2[MQ-2 Detector humo/gases]
-    ADC --> RAIN[Pluviómetro de balancín]
-    ADC --> UV[UV Sensor analógico]
-    PI -->|1-Wire| DS18[DS18B20 Temp exterior]
-    PI --> RELAY[Relay 4 canales]
-    RELAY --> SIREN[Siren/Estrobo 12V]
-    RELAY --> PUMP[Electroválvula / Aspersores]
-    PI --> FAN[Ventilador extracción 5V]
-    PI --> NET[Wi-Fi / LTE Router]
-```
+![hardwareB](../diagrams/hardware.jpg)
 
-### Diagrama de software (versión preliminar)
+### Diagrama de software
 
-```mermaid
-flowchart TD
-    subgraph Edge_Device [Raspberry Pi]
-        SRV[weather-node.service]
-        MGR[Device Manager]
-        SEN[Sensor Drivers]
-        ACT[Actuator Controller]
-        BUF[Local Data Buffer (SQLite)]
-        RULE[Motor de reglas]
-        OTA[Actualizador OTA]
-    end
-    subgraph Cloud [Nube / LAN]
-        MQTT[MQTT Broker]
-        DB[TimescaleDB / PostgreSQL]
-        API[API FastAPI]
-        DASH[Dashboard (React + Plotly)]
-        ALERT[Notificador (Telegram / Email)]
-        CI[Pipeline CI/CD]
-    end
-    SRV --> MGR
-    MGR --> SEN
-    SEN --> BUF
-    BUF --> MQTT
-    MGR --> ACT
-    RULE --> ACT
-    RULE --> ALERT
-    MQTT --> DB
-    DB --> API
-    API --> DASH
-    CI --> OTA
-    ALERT -->|Ack| MGR
-```
+![softwareB](../diagrams/software.jpg)
 
 ## 2. Self-Stakeholder Reflection
 
