@@ -22,12 +22,8 @@ OBJ := \
 	$(BUILD_DIR)/mq135.o \
 	$(BUILD_DIR)/mq2.o \
 	$(BUILD_DIR)/dht11.o \
-
 	$(BUILD_DIR)/ky026.o \
-
-
 	$(BUILD_DIR)/sensor.o
-	
 
 # Link final
 $(BUILD_DIR)/$(BINARY): $(OBJ)
