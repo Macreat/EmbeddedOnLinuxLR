@@ -141,3 +141,10 @@ void controller_loop(void)
         gpioDelay(500000); // 500 ms
     }
 }
+
+int main(void)
+{
+    controller_init();
+    controller_loop(); // bucle infinito dentro
+    return 0;
+}
