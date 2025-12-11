@@ -30,7 +30,7 @@ const mq135 = document.getElementById('mq135');
 const flame = document.getElementById('flame');
 const dht = document.getElementById('dht');
 
-const client = mqtt.connect('ws://localhost:9001'); // broker local
+const client = mqtt.connect('ws://192.168.1.18:9001'); // broker local
 client.on('connect', () => { status.textContent = 'Conectado a MQTT'; client.subscribe('sensores/estado'); });
 client.on('reconnect', () => status.textContent = 'Reconectando...');
 client.on('error', err => { status.textContent = 'Error MQTT'; console.error(err); });

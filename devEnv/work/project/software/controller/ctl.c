@@ -1,6 +1,8 @@
 #define _POSIX_C_SOURCE 199309L // enable POSIX time functions
 
 #include <stdio.h>
+#include <stdlib.h>
+
 #include <time.h>
 #include <unistd.h>
 #include <pigpio.h>
@@ -22,182 +24,116 @@
 
 #include "../actuators/led_actuator.h"
 
-//
-// Ajusta a tu cableado (BCM)
-#define PIN_MQ2 5
-#define PIN_MQ135 6
-#define PIN_FLAME 13
-#define PIN_DHT11 17
+// --- CONFIGURACIÓN MQTT AWS ---
+#define MQTT_HOST "3.134.86.43"
+#define MQTT_PORT 1883
+#define MQTT_USER "raspi"
+#define MQTT_PASS "12345678"
 
-#define PIN_LED_R 22
-#define PIN_LED_G 27
-#define PIN_LED_B 24
+#define TOPIC_STATE "sistema/estado"     // Payload: ALARM, WARNING, NORMAL
+#define TOPIC_SENSORS "sistema/sensores" // Payload: JSON completo
 
-#define PIN_BUZZER 18
-#define PIN_GATE1 23
-#define PIN_GATE2 25
-
-static struct mosquitto *mq = NULL;
-// mosquitto protocol
-
+// --- ESTRUCTURA DE DATOS ---
 typedef struct
 {
-    int gas_mq2;
-    int gas_mq135;
-    int flame;
-    double temp_c;
-    double hum;
-    int dht_ok;
-} Measurements;
+    double gas_mq2;
+    double temp;
+    // Puedes agregar más aquí si tu sensor.h lo soporta
+} SystemData;
 
-static void actuators_set_normal(void)
+// Función wrapper para leer tus sensores
+void read_all_sensors(SystemData *data)
 {
-    led_actuator_set(LED_GREEN);
-    gpioWrite(PIN_BUZZER, 0);
-    gpioWrite(PIN_GATE1, 0);
-    gpioWrite(PIN_GATE2, 0);
+    // LLAMADA A TUS FUNCIONES REALES DE SENSOR.H
+    // Si tu sensor_read() devuelve un solo valor, ajusta esto.
+    // Aquí asumo que sensor_read devuelve un double genérico por ahora.
+
+    data->gas_mq2 = sensor_read(); // Lee sensor 1
+    data->temp = sensor_read();    // Lee sensor 2 (Simulado o real)
+
+    // NOTA: Si sensor_read() es random en tu implementación actual,
+    // los valores cambiarán en cada llamada.
 }
 
-static void actuators_set_warning(void)
+int main(int argc, char *argv[])
 {
-    led_actuator_set(LED_BLUE);
-    gpioWrite(PIN_BUZZER, 1);
-    gpioWrite(PIN_GATE1, 1);
-    gpioWrite(PIN_GATE2, 0);
-}
+    // 1. Corrección de Warnings: Indicar que no usamos argumentos de consola
+    (void)argc;
+    (void)argv;
 
-static void actuators_set_alarm(void)
-{
-    led_actuator_set(LED_RED);
-    gpioWrite(PIN_BUZZER, 1);
-    gpioWrite(PIN_GATE1, 1);
-    gpioWrite(PIN_GATE2, 1);
-}
+    struct mosquitto *mosq;
+    int rc;
 
-void controller_init(void)
-{
-    if (gpioInitialise() < 0)
-    {
-        perror("pigpio init failed");
-        return;
-    }
+    // 2. Inicializar Sensores (Función de tu sensor.h)
+    // Si sensor.h NO tiene sensor_init(), borra esta línea.
+    sensor_init();
 
-    mq2_init(PIN_MQ2, 0); // 0 si el módulo entrega LOW al detectar
-    mq135_init(PIN_MQ135, 0);
-    ky026_init(PIN_FLAME, 0); // muchos KY-026 son LOW al detectar
-    dht11_init(PIN_DHT11);
+    // --- ELIMINADO: buzzer_init() ---
+    // Ya no iniciamos buzzer local porque la ESP32 es la alarma remota.
 
-    led_actuator_init(PIN_LED_R, PIN_LED_G, PIN_LED_B, 1); // 1 para cátodo común
-    gpioSetMode(PIN_BUZZER, PI_OUTPUT);
-    gpioSetMode(PIN_GATE1, PI_OUTPUT);
-    gpioSetMode(PIN_GATE2, PI_OUTPUT);
-
-    actuators_set_normal();
+    // 3. Inicializar MQTT
     mosquitto_lib_init();
-    mq = mosquitto_new("sensor_app", true, NULL);
-    if (!mq || mosquitto_connect(mq, "127.0.0.1", 1883, 60) != MOSQ_ERR_SUCCESS)
+    mosq = mosquitto_new("raspi_brain_v4", true, NULL);
+
+    // Autenticación
+    mosquitto_username_pw_set(mosq, MQTT_USER, MQTT_PASS);
+
+    // Conectar
+    rc = mosquitto_connect(mosq, MQTT_HOST, MQTT_PORT, 60);
+    if (rc != 0)
     {
-        fprintf(stderr, "MQTT connect failed\n");
+        printf("Error conectando al broker: %s\n", mosquitto_strerror(rc));
+        return 1;
     }
-}
+    printf("--- Raspi Cerebro Iniciado ---\n");
+    printf("Modo: Lectura de sensores -> Publicación AWS\n");
 
-static Measurements read_all_sensors(void)
-{
-    Measurements m = {0};
+    // Iniciar loop de MQTT en segundo plano
+    mosquitto_loop_start(mosq);
 
-    MQ2_Data mq2 = mq2_read();
-    MQ135_Data mq135 = mq135_read();
-    KY026_Data fl = ky026_read();
-    DHT11_Data dht = dht11_read();
+    SystemData currentData;
+    char payload_sensors[256];
 
-    m.gas_mq2 = mq2.triggered;
-    m.gas_mq135 = mq135.triggered;
-    m.flame = fl.flame_detected;
-    m.dht_ok = dht.valid;
-    m.temp_c = dht.temp_c;
-    m.hum = dht.hum;
-    return m;
-}
+    // Corrección Warning: 'last_state' no se usaba, ahora usamos 'system_state'
+    char *system_state = "NORMAL";
 
-static void apply_logic(const Measurements *m)
-{
-    int gas = m->gas_mq2 || m->gas_mq135;
-    int heat = m->dht_ok && (m->temp_c >= 35.0 || m->hum >= 80.0);
-    if (m->flame || (gas && heat))
+    while (1)
     {
-        actuators_set_alarm(); // Rojo: flama o gas+calor
-    }
-    else if (gas || heat)
-    {
-        actuators_set_warning(); // Azul: gas o calor
-    }
-    else
-    {
-        actuators_set_normal(); // Verde
-    }
-}
-// now publish results
-static void publish_status(const Measurements *m, const char *color)
-{
-    if (!mq)
-        return;
-    char json[256];
-    snprintf(json, sizeof(json),
-             "{\"mq2\":%d,\"mq135\":%d,\"flame\":%d,"
-             "\"temp\":%.1f,\"hum\":%.1f,\"dht_ok\":%d,\"color\":\"%s\"}",
-             m->gas_mq2, m->gas_mq135, m->flame,
-             m->temp_c, m->hum, m->dht_ok, color);
-    mosquitto_publish(mq, NULL, "sensores/estado", strlen(json), json, 0, false);
-}
+        // A. LEER ENTORNO
+        read_all_sensors(&currentData);
 
-// for monitor actuators
-static const char *logic_color(const Measurements *m)
-{
-    int gas = m->gas_mq2 || m->gas_mq135;
-    int heat = m->dht_ok && (m->temp_c >= 35.0 || m->hum >= 80.0);
-    if (m->flame || (gas && heat))
-        return "RED";
-    if (gas || heat)
-        return "BLUE";
-    return "GREEN";
-}
-void controller_loop(void)
-{
-    int tick = 0;
-    for (;;)
-    {
-        Measurements m = read_all_sensors();
-        apply_logic(&m);
-        const char *color = logic_color(&m);
-
-        if (tick % 10 == 0)
-        { // cada 5 s si delay es 500 ms
-          // tu printf actual…
-
-            printf("MQ2=%d MQ135=%d FLAME=%d | ", m.gas_mq2, m.gas_mq135, m.flame);
-            if (m.dht_ok)
-                printf("T=%.1fC H=%.1f%% | ", m.temp_c, m.hum);
-            else
-                printf("DHT11 invalid | ");
-
-            printf("LED=%s BUZZER=%d GATE1=%d GATE2=%d\n",
-                   color,
-                   gpioRead(PIN_BUZZER),
-                   gpioRead(PIN_GATE1),
-                   gpioRead(PIN_GATE2));
-            // and publish
-            publish_status(&m, color);
+        // B. PROCESAR Y DECIDIR (Lógica de Negocio)
+        // Ejemplo: Gas mayor a 80 O Temperatura mayor a 50
+        if (currentData.gas_mq2 > 80.0 || currentData.temp > 50.0)
+        {
+            system_state = "ALARM";
+            printf("[ALERTA] Valores criticos detectados. Gas: %.2f\n", currentData.gas_mq2);
         }
-        tick++;
-        gpioDelay(500000);
-        if (mq)
-            mosquitto_loop(mq, 0, 1);
-    }
-}
+        else if (currentData.gas_mq2 > 40.0)
+        {
+            system_state = "WARNING";
+            printf("[PRECAUCION] Niveles elevados. Gas: %.2f\n", currentData.gas_mq2);
+        }
+        else
+        {
+            system_state = "NORMAL";
+            printf("[OK] Sistema estable. Gas: %.2f\n", currentData.gas_mq2);
+        }
 
-int main(void)
-{
-    controller_init();
-    controller_loop(); // bucle infinito dentro 5000000
+        // C. PUBLICAR ESTADO (Para que la ESP32 remota encienda el LED)
+        mosquitto_publish(mosq, NULL, TOPIC_STATE, strlen(system_state), system_state, 0, 0);
+
+        // D. PUBLICAR DATOS (Para que la Web grafique)
+        sprintf(payload_sensors,
+                "{\"mq2\": %.2f, \"temp\": %.2f, \"status\": \"%s\"}",
+                currentData.gas_mq2, currentData.temp, system_state);
+
+        mosquitto_publish(mosq, NULL, TOPIC_SENSORS, strlen(payload_sensors), payload_sensors, 0, 0);
+
+        // Esperar 2 segundos antes de la siguiente lectura
+        sleep(2);
+    }
+
+    mosquitto_lib_cleanup();
     return 0;
 }

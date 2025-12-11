@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Dashboard IoT Remoto</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+      }
+      .card {
+        border: 1px solid #ccc;
+        padding: 20px;
+        margin: 10px;
+        display: inline-block;
+        width: 200px;
+      }
+      #status-box {
+        padding: 20px;
+        color: white;
+        font-weight: bold;
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+      .normal {
+        background-color: green;
+      }
+      .warning {
+        background-color: orange;
+      }
+      .alarm {
+        background-color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Monitor de Sistema Distribuido</h1>
+
+    <!-- Caja de Estado General -->
+    <div id="status-box" class="normal">SISTEMA: ESPERANDO DATOS...</div>
+
+    <div class="card">
+      <h3>Gas MQ-2</h3>
+      <p id="val-gas">--</p>
+    </div>
+    <div class="card">
+      <h3>Temperatura</h3>
+      <p id="val-temp">--</p>
+    </div>
+    <div class="card">
+      <h3>Humedad</h3>
+      <p id="val-hum">--</p>
+    </div>
+
+    <script>
+      // Configuración MQTT WebSockets
+      const broker = "3.134.86.43"; // Tu IP Publica AWS
+      const port = 9001; // Puerto WebSocket (configurado en mosquitto.conf)
+
+      client = new Paho.MQTT.Client(
+        broker,
+        port,
+        "web_client_" + parseInt(Math.random() * 100, 10)
+      );
+
+      client.onConnectionLost = function (responseObject) {
+        console.log("Conexión perdida: " + responseObject.errorMessage);
+      };
+
+      client.onMessageArrived = function (message) {
+        console.log("Llegó mensaje en: " + message.destinationName);
+
+        // Si llega el JSON de sensores
+        if (message.destinationName === "sistema/sensores") {
+          try {
+            var data = JSON.parse(message.payloadString);
+            document.getElementById("val-gas").innerText = data.gas.toFixed(1);
+            document.getElementById("val-temp").innerText =
+              data.temp.toFixed(1) + " C";
+            document.getElementById("val-hum").innerText =
+              data.hum.toFixed(1) + " %";
+
+            // Actualizar caja de estado visualmente basado en el JSON
+            updateStatusBox(data.status);
+          } catch (e) {
+            console.error("Error parseando JSON", e);
+          }
+        }
+      };
+
+      function updateStatusBox(status) {
+        var box = document.getElementById("status-box");
+        box.innerText = "ESTADO: " + status;
+        box.className = ""; // Limpiar clases
+
+        if (status === "ALARM") box.classList.add("alarm");
+        else if (status === "WARNING") box.classList.add("warning");
+        else box.classList.add("normal");
+      }
+
+      client.connect({
+        userName: "webuser", // Usuario configurado en mosquitto
+        password: "webpassword",
+        onSuccess: function () {
+          console.log("Conectado desde Web!");
+          // Nos suscribimos a los sensores
+          client.subscribe("sistema/sensores");
+          // Opcional: suscribirse al estado si viniera por separado
+          client.subscribe("sistema/estado");
+        },
+        useSSL: false,
+      });
+    </script>
+  </body>
+</html>

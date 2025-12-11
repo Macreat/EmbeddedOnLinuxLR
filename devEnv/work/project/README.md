@@ -28,7 +28,7 @@ WeatherShield es una **plataforma IoT embebida** basada en **servicios Linux (sy
 - **Automatización:** reglas configurables para activar actuadores.
 - **Resiliencia energética:** operación autónoma ≥ 12 h mediante UPS HAT + batería.
 
-El sistema sigue una arquitectura **Edge → Cloud**, con un nodo Raspberry Pi que actúa como dispositivo de borde y un backend que recibe datos, los almacena y los visualiza mediante un dashboard React/Plotly.
+El sistema sigue una arquitectura **Edge → Cloud**, con un nodo Raspberry Pi que actúa como dispositivo de borde y un backend que recibe datos, los almacena y los visualiza mediante un dashboard React/Plotly, haciendo uso de la arquitectura EDGE GATEWAY.
 
 ---
 
