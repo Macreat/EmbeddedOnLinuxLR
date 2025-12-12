@@ -15,7 +15,6 @@ void mq2_init(int gpio_pin, int active_high)
     mq2_active_high = active_high;
     gpioSetMode(mq2_pin, PI_INPUT);
 }
-
 MQ2_Data mq2_read(void)
 {
     MQ2_Data d = {0};

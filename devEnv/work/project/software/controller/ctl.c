@@ -6,20 +6,20 @@
 #include <unistd.h>
 #include <string.h>
 #include <mosquitto.h>
-
-// Librería para GPIO (Necesaria para DHT11, KY-026, etc.)
 #include <pigpio.h>
 
-// TUS HEADERS DE SENSORES
-#include "../sensor/sensor.h" // Tu generador genérico (si lo usas)
-#include "../sensor/mq2.h"    // Gas/Humo
-#include "../sensor/mq135.h"  // Calidad Aire
-#include "../sensor/dht11.h"  // Temperatura y Humedad
-#include "../sensor/ky026.h"  // Fuego/Llama
+// HEADERS DE TUS SENSORES
+#include "../sensor/sensor.h"
+#include "../sensor/mq2.h"
+#include "../sensor/mq135.h"
+#include "../sensor/dht11.h"
+#include "../sensor/ky026.h"
 
-// (Los actuadores locales los incluimos pero NO los usamos, la ESP32 es quien actúa)
-#include "../actuators/actuator.h"
-#include "../actuators/led_actuator.h"
+// --- CONFIGURACIÓN DE PINES (GPIO BCM) ---
+#define PIN_DHT11 16
+#define PIN_MQ2 22
+#define PIN_MQ135 23
+#define PIN_KY026 27
 
 // --- CONFIGURACIÓN MQTT AWS ---
 #define MQTT_HOST "3.134.86.43"
@@ -27,75 +27,78 @@
 #define MQTT_USER "esp32"
 #define MQTT_PASS "12345678"
 
-#define TOPIC_STATE "sistema/estado"     // Payload: ALARM, WARNING, NORMAL
-#define TOPIC_SENSORS "sistema/sensores" // Payload: JSON completo
+#define TOPIC_STATE "sistema/estado"
+#define TOPIC_SENSORS "sistema/sensores"
 
-// --- ESTRUCTURA DE DATOS EXPANDIDA ---
+// --- ESTRUCTURA DE DATOS ---
 typedef struct
 {
-    double mq2_gas;     // Humo/Gas inflamable
-    double mq135_air;   // Calidad del aire (CO2/Amoniaco)
-    double temperature; // DHT11 Temp
-    double humidity;    // DHT11 Humedad
-    int flame_detected; // KY-026 (1=Fuego, 0=No Fuego)
+    double mq2_gas;   // 0.0 = Limpio, 1.0 = Detectado
+    double mq135_air; // 0.0 = Limpio, 1.0 = Detectado
+    double temperature;
+    double humidity;
+    int flame_detected; // 0 = No, 1 = Si
 } SystemData;
 
-// --- FUNCIÓN DE LECTURA DE SENSORES ---
+// --- FUNCIÓN DE LECTURA DE SENSORES CORREGIDA ---
 void read_all_sensors(SystemData *data)
 {
-    // IMPORTANTE: Aquí debes llamar a las funciones reales definidas en tus .h
-    // Si tus .h solo tienen simulaciones, usa sensor_read().
-    // Si tienen lógica real con pigpio, usa sus funciones especificas.
+    // 1. Lectura MQ-2 (Devuelve struct MQ2_Data)
+    MQ2_Data mq2_result = mq2_read();
+    // Convertimos el digital (0 o 1) a double para la gráfica (simulamos PPM: 10 o 90)
+    data->mq2_gas = mq2_result.triggered ? 90.0 : 10.0;
 
-    // 1. Lectura MQ-2 (Humo)
-    // data->mq2_gas = mq2_read_analog(); <--- Usa esto si tienes la función real
-    data->mq2_gas = mq2_read();
+    // 2. Lectura MQ-135 (Devuelve struct MQ135_Data)
+    MQ135_Data mq135_result = mq135_read();
+    data->mq135_air = mq135_result.triggered ? 85.0 : 15.0;
 
-    // 2. Lectura MQ-135 (Aire)
-    // data->mq135_air = mq135_read_ppm();
-    data->mq135_air = mq135_read(); // Simulado (usando generador aleatorio)
+    // 3. Lectura DHT11 (Devuelve struct DHT11_Data)
+    DHT11_Data dht_result = dht11_read();
 
-    // 3. Lectura DHT11 (Temp y Humedad)
-    // dht11_read_data(&data->temperature, &data->humidity);
-    data->temperature = 20.0 + (dht11_read().temp_c / 10.0); // Simulado rango 20-30C
-    data->humidity = 40.0 + (dht11_read.hum / 5.0);          // Simulado rango 40-60%
-
-    // 4. Lectura KY-026 (Fuego - Digital)
-    // data->flame_detected = ky026_is_fire();
-    // Simulemos que si el valor aleatorio es > 95, hay fuego
-    double val = ky026_read();
-    if (val > 95.0)
-        data->flame_detected = 1;
+    // Validamos si la lectura fue correcta
+    if (dht_result.valid)
+    {
+        data->temperature = (double)dht_result.temp_c;
+        data->humidity = (double)dht_result.hum;
+    }
     else
-        data->flame_detected = 0;
+    {
+        // Si falla, mantenemos el valor anterior o ponemos error
+        // Para este ejemplo, no actualizamos si falla
+        printf("[Sensor] Error leyendo DHT11\n");
+    }
+
+    // 4. Lectura KY-026 (Devuelve struct KY026_Data)
+    KY026_Data fire_result = ky026_read();
+    data->flame_detected = fire_result.flame_detected;
 }
 
 int main(int argc, char *argv[])
 {
     (void)argc;
-    (void)argv; // Evitar warnings
+    (void)argv;
 
     struct mosquitto *mosq;
     int rc;
 
-    // 1. Inicializar Hardware (Pigpio es necesario para los sensores reales)
+    // 1. Inicializar Hardware
     if (gpioInitialise() < 0)
     {
         fprintf(stderr, "Fallo al inicializar pigpio\n");
         return 1;
     }
 
-    // Inicializar sensores (si tus librerías lo requieren)
-    sensor_init();
-    mq2_init();
-    < --Descomenta si tus headers tienen init
-        dht11_init();
-    mq135_init();
-    ky026_init();
+    // --- INICIALIZACIÓN CORRECTA DE SENSORES ---
+    // Pasamos el PIN y el modo (1=Active High, 0=Active Low)
+
+    mq2_init(PIN_MQ2, 1); // MQ2 suele dar 1 al detectar humo (ajustar si es al reves)
+    mq135_init(PIN_MQ135, 1);
+    dht11_init(PIN_DHT11);
+    ky026_init(PIN_KY026, 0); // KY-026 suele dar 0 (LOW) cuando detecta fuego, por eso puse 0
 
     // 2. Inicializar MQTT
     mosquitto_lib_init();
-    mosq = mosquitto_new("raspi_brain_full", true, NULL);
+    mosq = mosquitto_new("raspi_brain_real", true, NULL);
     mosquitto_username_pw_set(mosq, MQTT_USER, MQTT_PASS);
 
     rc = mosquitto_connect(mosq, MQTT_HOST, MQTT_PORT, 60);
@@ -104,54 +107,55 @@ int main(int argc, char *argv[])
         printf("Error MQTT: %s\n", mosquitto_strerror(rc));
         return 1;
     }
-    printf("--- MONITOR AMBIENTAL AVANZADO INICIADO ---\n");
+    printf("--- MONITOR AMBIENTAL: PINES %d, %d, %d, %d ---\n",
+           PIN_DHT11, PIN_MQ2, PIN_MQ135, PIN_KY026);
 
     mosquitto_loop_start(mosq);
 
-    SystemData data;
-    char payload_sensors[512]; // Aumentamos tamaño para caber todo el JSON
+    SystemData data = {0}; // Inicializar a ceros
+    char payload_sensors[512];
     char *system_state = "NORMAL";
 
     while (1)
     {
-        // A. LEER TODOS LOS SENSORES
         read_all_sensors(&data);
 
-        // B. LÓGICA DE NEGOCIO (EL CEREBRO)
-        // Jerarquía de Alarmas: FUEGO > GAS/HUMO > CALIDAD AIRE/TEMP
+        // --- LÓGICA CORREGIDA ---
+        // Usamos '&&' para AND lógico, no '&'
+        // Usamos 'data.temperature', no 'temperature' sola
 
-        if (data.flame_detected == 1 & temperature > 40)
+        if (data.flame_detected == 1 || data.temperature > 50.0)
         {
-            system_state = "ALARM"; // Prioridad máxima: FUEGO
-            printf("[PELIGRO] ¡FUEGO DETECTADO! Activando sistema remoto.\n");
+            system_state = "ALARM";
+            printf("[PELIGRO] ¡FUEGO O CALOR EXTREMO! Temp: %.1f\n", data.temperature);
         }
-        else if (data.mq2_gas > 80.0)
+        else if (data.mq2_gas > 50.0) // Recordar que simulamos >50 como detectado
         {
-            system_state = "ALARM"; // Prioridad alta: Fuga de gas o humo denso
-            printf("[PELIGRO] Niveles criticos de Gas/Humo: %.2f\n", data.mq2_gas);
+            system_state = "ALARM";
+            printf("[PELIGRO] GAS DETECTADO.\n");
         }
-        else if (data.mq135_air > 70.0 || data.temperature > 35.0)
+        else if (data.mq135_air > 50.0 || data.temperature > 35.0)
         {
-            system_state = "WARNING"; // Advertencia: Mala calidad aire o calor
-            printf("[ATENCION] Ambiente degradado. Aire: %.2f | Temp: %.2f\n", data.mq135_air, data.temperature);
+            system_state = "WARNING";
+            printf("[ATENCION] Calidad aire mala o calor. Temp: %.1f\n", data.temperature);
         }
         else
         {
             system_state = "NORMAL";
-            printf("[OK] Parametros nominales.\n");
+            printf("[OK] T:%.1f H:%.1f Gas:%d Aire:%d Fuego:%d\n",
+                   data.temperature, data.humidity,
+                   (int)data.mq2_gas, (int)data.mq135_air, data.flame_detected);
         }
 
-        // C. PUBLICAR ESTADO (Para la ESP32)
+        // Publicar
         mosquitto_publish(mosq, NULL, TOPIC_STATE, strlen(system_state), system_state, 0, 0);
 
-        // D. PUBLICAR TELEMETRÍA COMPLETA (Para la Web)
-        // Construimos un JSON robusto
         sprintf(payload_sensors,
                 "{"
-                "\"mq2\": %.2f, "
-                "\"mq135\": %.2f, "
-                "\"temp\": %.2f, "
-                "\"hum\": %.2f, "
+                "\"mq2\": %.1f, "
+                "\"mq135\": %.1f, "
+                "\"temp\": %.1f, "
+                "\"hum\": %.1f, "
                 "\"fire\": %d, "
                 "\"status\": \"%s\""
                 "}",
@@ -164,10 +168,10 @@ int main(int argc, char *argv[])
 
         mosquitto_publish(mosq, NULL, TOPIC_SENSORS, strlen(payload_sensors), payload_sensors, 0, 0);
 
-        sleep(2); // Muestreo cada 2 segundos
+        sleep(2);
     }
 
     mosquitto_lib_cleanup();
-    gpioTerminate(); // Cerrar pigpio correctamente al salir
+    gpioTerminate();
     return 0;
 }
