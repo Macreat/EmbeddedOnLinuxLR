@@ -49,21 +49,21 @@ void read_all_sensors(SystemData *data)
 
     // 1. Lectura MQ-2 (Humo)
     // data->mq2_gas = mq2_read_analog(); <--- Usa esto si tienes la función real
-    data->mq2_gas = sensor_read(); // Simulado por ahora (basado en tu sensor.h)
+    data->mq2_gas = mq2_read();
 
     // 2. Lectura MQ-135 (Aire)
     // data->mq135_air = mq135_read_ppm();
-    data->mq135_air = sensor_read(); // Simulado (usando generador aleatorio)
+    data->mq135_air = mq135_read(); // Simulado (usando generador aleatorio)
 
     // 3. Lectura DHT11 (Temp y Humedad)
     // dht11_read_data(&data->temperature, &data->humidity);
-    data->temperature = 20.0 + (sensor_read() / 10.0); // Simulado rango 20-30C
-    data->humidity = 40.0 + (sensor_read() / 5.0);     // Simulado rango 40-60%
+    data->temperature = 20.0 + (dht11_read().temp_c / 10.0); // Simulado rango 20-30C
+    data->humidity = 40.0 + (dht11_read.hum / 5.0);          // Simulado rango 40-60%
 
     // 4. Lectura KY-026 (Fuego - Digital)
     // data->flame_detected = ky026_is_fire();
     // Simulemos que si el valor aleatorio es > 95, hay fuego
-    double val = sensor_read();
+    double val = ky026_read();
     if (val > 95.0)
         data->flame_detected = 1;
     else
@@ -87,8 +87,11 @@ int main(int argc, char *argv[])
 
     // Inicializar sensores (si tus librerías lo requieren)
     sensor_init();
-    // mq2_init();   <-- Descomenta si tus headers tienen init
-    // dht11_init();
+    mq2_init();
+    < --Descomenta si tus headers tienen init
+        dht11_init();
+    mq135_init();
+    ky026_init();
 
     // 2. Inicializar MQTT
     mosquitto_lib_init();
@@ -117,7 +120,7 @@ int main(int argc, char *argv[])
         // B. LÓGICA DE NEGOCIO (EL CEREBRO)
         // Jerarquía de Alarmas: FUEGO > GAS/HUMO > CALIDAD AIRE/TEMP
 
-        if (data.flame_detected == 1)
+        if (data.flame_detected == 1 & temperature > 40)
         {
             system_state = "ALARM"; // Prioridad máxima: FUEGO
             printf("[PELIGRO] ¡FUEGO DETECTADO! Activando sistema remoto.\n");

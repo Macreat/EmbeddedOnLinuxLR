@@ -5,7 +5,7 @@
 #include <pigpio.h>
 #include <stdint.h>
 
-static int dht_pin = -1;
+static int dht_pin = 17;
 
 void dht11_init(int gpio_pin)
 {

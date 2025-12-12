@@ -6,7 +6,7 @@
 
 #include "mq2.h"
 
-static int mq2_pin = -1;
+static int mq2_pin = 22;
 static int mq2_active_high = 1;
 
 void mq2_init(int gpio_pin, int active_high)

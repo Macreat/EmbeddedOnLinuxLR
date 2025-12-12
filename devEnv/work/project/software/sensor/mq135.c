@@ -4,7 +4,7 @@
 
 #include "mq135.h"
 
-static int mq135_pin = -1;
+static int mq135_pin = 23;
 static int mq135_active_high = 1;
 
 void mq135_init(int gpio_pin, int active_high)

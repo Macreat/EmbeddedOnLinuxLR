@@ -4,7 +4,7 @@
 
 #include "ky026.h"
 
-static int flame_pin = -1;
+static int flame_pin = 27;
 static int flame_active_high = 0; // muchos KY-026 entregan LOW al detectar
 
 void ky026_init(int gpio_pin, int active_high)
