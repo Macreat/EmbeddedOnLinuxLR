@@ -113,7 +113,7 @@ source work/embeddedOnLinuxPYDevEnv/bin/activate
       -services implementation
       -modular and polymorphism implementation
 - [x] project advances
-- [ ] project delivery
+- [x] project delivery
 
 ---
 

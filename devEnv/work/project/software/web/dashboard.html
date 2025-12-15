@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Panel sensores</title>
+<style>
+body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
+#circle { width: 180px; height: 180px; margin: 0 auto 20px; border-radius: 50%;
+  background: #222; box-shadow: 0 0 25px rgba(0,0,0,0.3); }
+.label { font-size: 20px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h2>basic BROKER deploy</h2>
+<div id="circle"></div>
+<div id="status" class="label">Conectando a MQTT...</div>
+<div class="label" id="color">Color: ---</div>
+<div class="label" id="mq2">MQ2: ---</div>
+<div class="label" id="mq135">MQ135: ---</div>
+<div class="label" id="flame">Flama: ---</div>
+<div class="label" id="dht">Temp/Hum: ---</div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+const circle = document.getElementById('circle');
+const status = document.getElementById('status');
+const cText = document.getElementById('color');
+const mq2 = document.getElementById('mq2');
+const mq135 = document.getElementById('mq135');
+const flame = document.getElementById('flame');
+const dht = document.getElementById('dht');
+
+const client = mqtt.connect('ws://192.168.1.18:9001'); // broker local
+client.on('connect', () => { status.textContent = 'Conectado a MQTT'; client.subscribe('sensores/estado'); });
+client.on('reconnect', () => status.textContent = 'Reconectando...');
+client.on('error', err => { status.textContent = 'Error MQTT'; console.error(err); });
+
+client.on('message', (topic, payload) => {
+  try {
+    const data = JSON.parse(payload.toString());
+    const color = data.color || 'gray';
+    circle.style.background = color;
+    cText.textContent = 'Color: ' + color;
+    mq2.textContent = 'MQ2: ' + data.mq2;
+    mq135.textContent = 'MQ135: ' + data.mq135;
+    flame.textContent = 'Flama: ' + data.flame;
+    if (data.dht_ok) dht.textContent = `Temp/Hum: ${data.temp.toFixed(1)}C ${data.hum.toFixed(1)}%`;
+    else dht.textContent = 'Temp/Hum: DHT11 invalid';
+  } catch (e) { console.error(e); }
+});
+</script>
+</body>
+</html>

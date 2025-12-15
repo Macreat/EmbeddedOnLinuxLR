@@ -1,6 +1,6 @@
 # WeatherShield – Embedded Linux Capstone
 
-![WeatherShield](./docs/embeddedSystem.jpg)
+![WeatherShield](./docs/demo.png)
 
 ## Intelligent Edge Weather & Security System based on Raspberry Pi 3
 
@@ -13,7 +13,7 @@ Desarrollada en el marco del curso **Linux Services in Embedded Systems**, guiad
 ![language](https://img.shields.io/badge/Made%20with-Python%203.11-blue)
 ![language](https://img.shields.io/badge/Made%20with-C-00599C?logo=c&logoColor=white)
 ![supervision](https://img.shields.io/badge/Supervisor-Juan%20Bernardo%20Gómez--Mendoza-orange)
-![license](https://img.shields.io/badge/license-Academic-lightblue)
+![license](https://img.shields.io/badge/license-Acgiademic-lightblue)
 
 ---
 
@@ -28,7 +28,7 @@ WeatherShield es una **plataforma IoT embebida** basada en **servicios Linux (sy
 - **Automatización:** reglas configurables para activar actuadores.
 - **Resiliencia energética:** operación autónoma ≥ 12 h mediante UPS HAT + batería.
 
-El sistema sigue una arquitectura **Edge → Cloud**, con un nodo Raspberry Pi que actúa como dispositivo de borde y un backend que recibe datos, los almacena y los visualiza mediante un dashboard React/Plotly.
+El sistema sigue una arquitectura **Edge → Cloud**, con un nodo Raspberry Pi que actúa como dispositivo de borde y un backend que recibe datos, los almacena y los visualiza mediante un dashboard React/Plotly, haciendo uso de la arquitectura EDGE GATEWAY.
 
 ---
 
@@ -65,6 +65,20 @@ WeatherShieldProject/
 └── README.md # Este documento
 ```
 
+### Diagramas de estructura
+
+#### Software
+
+![WeatherShield](./diagrams/software.jpg)
+
+#### Hardware
+
+![WeatherShield](./diagrams/hardware.jpg)
+
+#### Communication
+
+![WeatherShield](./diagrams/communicationProtocol.png)
+
 ---
 
 ## Objetivos del proyecto
@@ -88,6 +102,10 @@ WeatherShieldProject/
 3. **Pruebas de integración (40 %)** – Casos HIL documentados con resultados verificables.
 4. **Documentación final (20 %)** – README, guías de usuario y despliegue, changelog y demo final.
 
+- **requirements** → [`requirements `](./docs/requirements/)
+- **hardware** → [`BOM`](./hardware/bom.md)
+- **software** → [`software`](./software)
+
 ---
 
 ## Roadmap de desarrollo (8 semanas)
@@ -108,17 +126,17 @@ WeatherShieldProject/
 
 - [x] Validar métricas de éxito con el stakeholder (Semana 1).
 - [x] Confirmar disponibilidad del hardware pendiente y actualizar `hardware/bom.md`.
-- [ ] Configurar pipeline y verificar servicios y comunicación entre nodos.
-- [ ] Prototipar lectura de sensores BME280/BH1750/DS18B20 y almacenamiento en SQLITE/... .
-- [ ] Documentar el flujo MQTT y reglas iniciales en `docs/verification-plan.md`.
+- [x] Configurar pipeline y verificar servicios y comunicación entre nodos.
+- [x] Prototipar lectura de sensores lgpio/BME280/BH1750/DS18B20 y comunicación con MQTT/... .
+- [x] Documentar el flujo MQTT y reglas iniciales en `docs/verification-plan.md`.
 
 ---
 
 ## Recursos de apoyo
 
 - Rúbrica oficial → `advances/capstone-rubric.pdf`
-- Diagramas de hardware/software → `design/prjDesign.md`
-- Guías de verificación y trazabilidad → `docs/verification-plan.md` y `docs/rubric-traceability.md`
+- Diagramas de hardware/software → `diagramas'
+- Guías de verificación y trazabilidad → `docs/design/verification-plan.md` y `docs/design/risk-register.md`
 
 ---
 

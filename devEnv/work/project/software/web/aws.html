@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IoT | AWS</title>
+
+    <!-- Fuente Inter (Estándar moderno) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Librería MQTT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+    <style>
+        :root {
+            /* Paleta Minimalista Profesional */
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #111827;
+            --text-secondary: #6b7280;
+
+            /* Colores de Estado */
+            --color-success: #10b981; /* Verde Esmeralda */
+            --color-warning: #f59e0b; /* Ambar */
+            --color-danger: #ef4444; /* Rojo Suave */
+            --color-offline: #9ca3af; /* Gris */
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            width: 100%;
+            background: var(--card-bg);
+            padding: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Barra de Estado Principal */
+        #mainStatus {
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            color: white;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-normal { background-color: var(--color-success); }
+        .status-warning { background-color: var(--color-warning); color: #fff; }
+        .status-alarm { background-color: var(--color-danger); animation: pulse 2s infinite; }
+        .status-offline { background-color: var(--color-offline); }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        /* Grid de Tarjetas */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            width: 90%;
+            max-width: 1000px;
+            padding-bottom: 40px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            transition: transform 0.2s;
+            border: 1px solid rgba(0,0,0,0.02);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 10px 0;
+            color: var(--text-main);
+        }
+
+        .card-unit {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            background: #f0fdf4;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        /* Modificadores para tarjeta de fuego */
+        .fire-safe { color: var(--color-success); }
+        .fire-danger { color: var(--color-danger); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Monitor IoT Distribuido</h1>
+    </header>
+
+    <!-- Barra de Estado Dinámica -->
+    <div id="mainStatus" class="status-offline">Conectando a AWS ...</div>
+
+    <div class="dashboard-grid">
+        <!-- Sensor MQ-2 (Gas) -->
+        <div class="card">
+            <div class="card-icon">⛽</div>
+            <div class="card-title">Gas / Humo (MQ2)</div>
+            <div class="card-value" id="val-mq2">--</div>
+            <div class="card-unit">PPM</div>
+        </div>
+
+        <!-- Sensor MQ-135 (Calidad Aire) -->
+        <div class="card">
+            <div class="card-icon">🌬️</div>
+            <div class="card-title">Calidad Aire (MQ135)</div>
+            <div class="card-value" id="val-mq135">--</div>
+            <div class="card-unit">PPM</div>
+        </div>
+
+        <!-- Temperatura -->
+        <div class="card">
+            <div class="card-icon">🌡️</div>
+            <div class="card-title">Temperatura</div>
+            <div class="card-value" id="val-temp">--</div>
+            <div class="card-unit">Grados Celsius</div>
+        </div>
+
+        <!-- Humedad -->
+        <div class="card">
+            <div class="card-icon">💧</div>
+            <div class="card-title">Humedad</div>
+            <div class="card-value" id="val-hum">--</div>
+            <div class="card-unit">Porcentaje (%)</div>
+        </div>
+
+        <!-- Sensor Fuego -->
+        <div class="card" style="border-bottom: 4px solid transparent;" id="card-fire">
+            <div class="card-icon">🔥</div>
+            <div class="card-title">Detector de Fuego</div>
+            <div class="card-value" id="val-fire" style="font-size: 24px;">--</div>
+            <div class="card-unit">Sensor KY-026</div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN DE CONEXIÓN ---
+        const MQTT_BROKER = "3.134.86.43"; // Tu IP de AWS
+        const MQTT_PORT = 9001;          // Puerto WebSocket
+        const MQTT_TOPIC = "sistema/sensores";
+
+        // Generar ID único para evitar desconexiones
+        const clientID = "web_monitor_" + Math.random().toString(16).substr(2, 8);
+        const client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, clientID);
+
+        // --- MANEJO DE LA INTERFAZ ---
+        const statusEl = document.getElementById("mainStatus");
+
+        function updateUI(data) {
+            // 1. Actualizar Textos
+            document.getElementById("val-mq2").innerText = data.mq2.toFixed(1);
+            document.getElementById("val-mq135").innerText = data.mq135.toFixed(1);
+            document.getElementById("val-temp").innerText = data.temp.toFixed(1);
+            document.getElementById("val-hum").innerText = data.hum.toFixed(1);
+
+            // 2. Lógica Sensor de Fuego
+            const fireEl = document.getElementById("val-fire");
+            const fireCard = document.getElementById("card-fire");
+
+            if (data.fire == 1) {
+                fireEl.innerText = "¡DETECTADO!";
+                fireEl.className = "card-value fire-danger";
+                fireCard.style.borderColor = "var(--color-danger)";
+            } else {
+                fireEl.innerText = "Seguro";
+                fireEl.className = "card-value fire-safe";
+                fireCard.style.borderColor = "var(--color-success)";
+            }
+
+            // 3. Lógica Barra de Estado Principal
+            statusEl.innerText = "SISTEMA: " + data.status;
+            statusEl.className = ""; // Limpiar clases
+
+            if (data.status == "ALARM") {
+                statusEl.classList.add("status-alarm");
+            } else if (data.status == "WARNING") {
+                statusEl.classList.add("status-warning");
+            } else {
+                statusEl.classList.add("status-normal");
+            }
+        }
+
+        // --- LOGICA MQTT ---
+        client.onConnectionLost = function (responseObject) {
+            console.log("Conexión perdida: " + responseObject.errorMessage);
+            statusEl.innerText = "DESCONECTADO";
+            statusEl.className = "status-offline";
+        };
+
+        client.onMessageArrived = function (message) {
+            console.log("Datos recibidos:", message.payloadString);
+            try {
+                const data = JSON.parse(message.payloadString);
+                updateUI(data);
+            } catch (e) {
+                console.error("Error procesando JSON", e);
+            }
+        };
+
+        // --- INICIAR CONEXIÓN ---
+        const options = {
+            timeout: 3,
+            userName: "esp32", // Reemplaza si tu mosquitto requiere auth
+            password: "12345678",
+            useSSL: false,
+            onSuccess: function () {
+                console.log("¡Conectado a AWS!");
+                statusEl.innerText = "ESPERANDO DATOS ...";
+                statusEl.className = "status-offline";
+                client.subscribe(MQTT_TOPIC);
+            },
+            onFailure: function (message) {
+                console.log("Fallo conexión: " + message.errorMessage);
+                statusEl.innerText = "ERROR DE CONEXIÓN";
+                statusEl.className = "status-alarm";
+            }
+        };
+
+        console.log("Iniciando conexión a " + MQTT_BROKER + ":" + MQTT_PORT);
+        client.connect(options);
+
+    </script>
+</body>
+</html>
