@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IoT | AWS</title>
+
+    <!-- Fuente Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Librería MQTT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+    <style>
+        :root {
+            /* Paleta Minimalista Profesional Dark */
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-main: #ffffff;
+            --text-secondary: #b0b0b0;
+
+            /* Colores de Estado */
+            --color-success: #10b981; /* Verde */
+            --color-warning: #f59e0b; /* Ambar */
+            --color-danger: #ef4444;  /* Rojo */
+            --color-offline: #9ca3af; /* Gris */
+            --color-control: #3b82f6; /* Azul Control */
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            width: 100%;
+            background: var(--card-bg);
+            padding: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+
+        /* Barra de Estado Principal */
+        #mainStatus {
+            width: 90%;
+            max-width: 1000px;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            color: white;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-sizing: border-box;
+        }
+
+        .status-normal { background-color: var(--color-success); }
+        .status-warning { background-color: var(--color-warning); color: #fff; }
+        .status-alarm { background-color: var(--color-danger); animation: pulse 2s infinite; }
+        .status-offline { background-color: var(--color-offline); }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        /* SECCIÓN DE CONTROL (NUEVO) */
+        .control-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .ctrl-btn {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            background-color: #444;
+            border: 4px solid rgba(255,255,255,0.1);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: 0.2s;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        .ctrl-btn:active { transform: scale(0.95); }
+        
+        .mode-lbl { margin-top: 10px; font-weight: bold; color: var(--color-control); }
+        .help-text { font-size: 11px; color: var(--text-secondary); margin-top: 5px; }
+
+        /* Grid de Tarjetas */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            width: 90%;
+            max-width: 1000px;
+            padding-bottom: 40px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+            border: 1px solid rgba(255,255,255,0.02);
+            position: relative;
+        }
+        .card:hover { transform: translateY(-5px); }
+
+        .card-icon { font-size: 24px; margin-bottom: 10px; opacity: 0.8; }
+        .card-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+        .card-value { font-size: 36px; font-weight: 700; margin: 10px 0; color: var(--text-main); }
+        .card-unit { font-size: 13px; color: var(--text-secondary); font-weight: 500; background: #333; padding: 4px 8px; border-radius: 6px; }
+
+        /* Estilos Fuego */
+        .card-fire { border-bottom: 4px solid transparent; transition: 0.3s; }
+        .fire-safe { color: var(--color-success); }
+        .fire-danger { color: var(--color-danger); font-weight: bold; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+    </style>
+</head>
+<body>
+
+    <header><h1>Monitor IoT Distribuido</h1></header>
+
+    <!-- Barra de Estado -->
+    <div id="mainStatus" class="status-offline">Conectando a AWS ...</div>
+
+    <!-- PANEL DE CONTROL (BOTÓN MÁGICO) -->
+    <div class="control-panel">
+        <button id="magicBtn" class="ctrl-btn" onclick="handleControlClick()">CONTROL</button>
+        <div class="mode-lbl">MODO: <span id="val-mode">--</span></div>
+        <div class="help-text">1 Click: Auto/Warn | 2 Clicks: Alarma</div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Sensor MQ-2 -->
+        <div class="card">
+            <div class="card-icon">⛽</div>
+            <div class="card-title">Gas / Humo (MQ2)</div>
+            <div class="card-value" id="val-mq2">--</div>
+            <div class="card-unit">PPM</div>
+        </div>
+
+        <!-- Sensor MQ-135 -->
+        <div class="card">
+            <div class="card-icon">🌬️</div>
+            <div class="card-title">Calidad Aire (MQ135)</div>
+            <div class="card-value" id="val-mq135">--</div>
+            <div class="card-unit">PPM</div>
+        </div>
+
+        <!-- Temperatura -->
+        <div class="card">
+            <div class="card-icon">🌡️</div>
+            <div class="card-title">Temperatura</div>
+            <div class="card-value" id="val-temp">--</div>
+            <div class="card-unit">°C</div>
+        </div>
+
+        <!-- Humedad -->
+        <div class="card">
+            <div class="card-icon">💧</div>
+            <div class="card-title">Humedad</div>
+            <div class="card-value" id="val-hum">--</div>
+            <div class="card-unit">%</div>
+        </div>
+
+        <!-- Fuego -->
+        <div class="card card-fire" id="card-fire">
+            <div class="card-icon">🔥</div>
+            <div class="card-title">Detector de Fuego</div>
+            <div class="card-value" id="val-fire" style="font-size: 24px;">--</div>
+            <div class="card-unit">KY-026</div>
+        </div>
+    </div>
+
+    <script>
+        const MQTT_BROKER = "3.134.86.43"; 
+        const MQTT_PORT = 9001; 
+        const clientID = "web_" + Math.random().toString(16).substr(2, 8);
+        const client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, clientID);
+
+        // --- LÓGICA DE CLICK (Igual que ESP32) ---
+        let clicks = 0;
+        let timer = null;
+
+        function handleControlClick() {
+            clicks++;
+            if (clicks === 1) {
+                timer = setTimeout(() => {
+                    sendEvent("EVENT_CLICK_1"); // Timeout: Click Simple
+                    clicks = 0;
+                }, 500);
+            } else if (clicks === 2) {
+                clearTimeout(timer); // Cancelar timeout: Doble Click
+                sendEvent("EVENT_CLICK_2");
+                clicks = 0;
+            }
+        }
+
+        function sendEvent(evt) {
+            console.log("Enviando:", evt);
+            let msg = new Paho.MQTT.Message(evt);
+            msg.destinationName = "sistema/evento";
+            client.send(msg);
+        }
+
+        // --- ACTUALIZAR UI ---
+        function updateUI(data) {
+            // Valores
+            document.getElementById("val-mq2").innerText = data.mq2.toFixed(1);
+            document.getElementById("val-mq135").innerText = data.mq135.toFixed(1);
+            document.getElementById("val-temp").innerText = data.temp.toFixed(1);
+            document.getElementById("val-hum").innerText = data.hum.toFixed(1);
+
+            // Fuego
+            const fVal = document.getElementById("val-fire");
+            const fCard = document.getElementById("card-fire");
+            if (data.fire == 1) {
+                fVal.innerHTML = "<span class='fire-danger'>¡DETECTADO!</span>";
+                fCard.style.borderBottomColor = "var(--color-danger)";
+            } else {
+                fVal.innerHTML = "<span class='fire-safe'>Seguro</span>";
+                fCard.style.borderBottomColor = "transparent";
+            }
+
+            // Modo y Estado
+            document.getElementById("val-mode").innerText = data.mode;
+            
+            const st = document.getElementById("mainStatus");
+            st.innerText = "SISTEMA: " + data.status;
+            st.className = ""; 
+            if (data.status === "ALARM") st.classList.add("status-alarm");
+            else if (data.status === "WARNING") st.classList.add("status-warning");
+            else st.classList.add("status-normal");
+
+            // Botón Color
+            const btn = document.getElementById("magicBtn");
+            if (data.status === "ALARM") btn.style.backgroundColor = "#ef4444";
+            else if (data.status === "WARNING") btn.style.backgroundColor = "#3b82f6";
+            else btn.style.backgroundColor = "#10b981";
+        }
+
+        client.onMessageArrived = function (msg) {
+            if (msg.destinationName === "sistema/sensores") {
+                try { updateUI(JSON.parse(msg.payloadString)); } catch(e){}
+            }
+        };
+
+        client.connect({
+            userName: "webuser", password: "webpassword", useSSL: false,
+            onSuccess: function () {
+                document.getElementById("mainStatus").innerText = "ESPERANDO DATOS...";
+                document.getElementById("mainStatus").classList.add("status-offline");
+                client.subscribe("sistema/sensores");
+            }
+        });
+    </script>
+</body>
+</html>
