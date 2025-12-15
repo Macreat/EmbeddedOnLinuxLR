@@ -88,11 +88,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // --- INICIALIZACIÓN CORRECTA DE SENSORES ---
+    // --- INICIALIZACIÓN CORRECTA DE SENSORES ---s
     // Pasamos el PIN y el modo (1=Active High, 0=Active Low)
 
-    mq2_init(PIN_MQ2, 1); // MQ2 suele dar 1 al detectar humo (ajustar si es al reves)
-    mq135_init(PIN_MQ135, 1);
+    mq2_init(PIN_MQ2, 0); // MQ2 suele dar 1 al detectar humo (ajustar si es al reves)
+    mq135_init(PIN_MQ135, 0);
     dht11_init(PIN_DHT11);
     ky026_init(PIN_KY026, 0); // KY-026 suele dar 0 (LOW) cuando detecta fuego, por eso puse 0
 
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
         // Usamos '&&' para AND lógico, no '&'
         // Usamos 'data.temperature', no 'temperature' sola
 
-        if (data.flame_detected == 1 || data.temperature > 50.0)
+        if (data.flame_detected == 1 || data.temperature > 30.0)
         {
             system_state = "ALARM";
             printf("[PELIGRO] ¡FUEGO O CALOR EXTREMO! Temp: %.1f\n", data.temperature);
