@@ -16,6 +16,7 @@
 #include "../sensor/ky026.h"
 
 // --- CONFIGURACIÓN DE PINES (GPIO BCM) ---
+// NOTA: Como el botón está en la ESP32, no hay conflicto de pines aquí.
 #define PIN_DHT11 16
 #define PIN_MQ2 22
 #define PIN_MQ135 23
@@ -24,82 +25,106 @@
 // --- CONFIGURACIÓN MQTT AWS ---
 #define MQTT_HOST "3.134.86.43"
 #define MQTT_PORT 1883
-#define MQTT_USER "esp32"
+#define MQTT_USER "esp32" // Ajustado para identificar a la Raspi
 #define MQTT_PASS "12345678"
 
-#define TOPIC_STATE "sistema/estado"
-#define TOPIC_SENSORS "sistema/sensores"
+#define TOPIC_STATE "sistema/estado"     // Salida: NORMAL, WARNING, ALARM
+#define TOPIC_SENSORS "sistema/sensores" // Salida: JSON completo
+#define TOPIC_EVENT "sistema/evento"     // Entrada: EVENT_CLICK_1, EVENT_CLICK_2
+
+// --- ESTADO GLOBAL DEL SISTEMA ---
+int manual_mode = 0;               // 0 = Automático, 1 = Manual
+char manual_status[20] = "NORMAL"; // Estado forzado cuando estamos en manual
 
 // --- ESTRUCTURA DE DATOS ---
 typedef struct
 {
-    double mq2_gas;   // 0.0 = Limpio, 1.0 = Detectado
-    double mq135_air; // 0.0 = Limpio, 1.0 = Detectado
+    double mq2_gas;
+    double mq135_air;
     double temperature;
     double humidity;
-    int flame_detected; // 0 = No, 1 = Si
+    int flame_detected;
 } SystemData;
 
-// --- FUNCIÓN DE LECTURA DE SENSORES CORREGIDA ---
+// --- CALLBACK MQTT: EL CEREBRO DEL BOTÓN ---
+// Aquí recibimos los clicks de la ESP32 o la Web
+void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg)
+{
+    char *payload = (char *)msg->payload;
+    printf("[MQTT EVENT] Recibido: %s\n", payload);
+
+    if (strcmp(payload, "EVENT_CLICK_2") == 0)
+    {
+        // DOBLE CLICK: Prioridad -> MANUAL PELIGRO (ROJO)
+        manual_mode = 1;
+        strcpy(manual_status, "ALARM");
+        printf(" -> ACCIÓN: Forzando MANUAL ALARM (ROJO)\n");
+    }
+    else if (strcmp(payload, "EVENT_CLICK_1") == 0)
+    {
+        // UN CLICK: Toggle
+        if (manual_mode == 0)
+        {
+            // Si estaba Auto -> Pasa a MANUAL WARNING (AZUL)
+            manual_mode = 1;
+            strcpy(manual_status, "WARNING");
+            printf(" -> ACCIÓN: Cambiando a MANUAL WARNING (AZUL)\n");
+        }
+        else
+        {
+            // Si estaba en CUALQUIER Manual -> Vuelve a AUTO
+            manual_mode = 0;
+            printf(" -> ACCIÓN: Volviendo a MODO AUTOMÁTICO\n");
+        }
+    }
+}
+
+// --- FUNCIÓN DE LECTURA DE SENSORES ---
 void read_all_sensors(SystemData *data)
 {
-    // 1. Lectura MQ-2 (Devuelve struct MQ2_Data)
+    // 1. Lectura MQ-2
     MQ2_Data mq2_result = mq2_read();
-    // Convertimos el digital (0 o 1) a double para la gráfica (simulamos PPM: 10 o 90)
     data->mq2_gas = mq2_result.triggered ? 90.0 : 10.0;
 
-    // 2. Lectura MQ-135 (Devuelve struct MQ135_Data)
+    // 2. Lectura MQ-135
     MQ135_Data mq135_result = mq135_read();
     data->mq135_air = mq135_result.triggered ? 85.0 : 15.0;
 
-    // 3. Lectura DHT11 (Devuelve struct DHT11_Data)
+    // 3. Lectura DHT11
     DHT11_Data dht_result = dht11_read();
-
-    // Validamos si la lectura fue correcta
     if (dht_result.valid)
     {
         data->temperature = (double)dht_result.temp_c;
         data->humidity = (double)dht_result.hum;
     }
-    else
-    {
-        // Si falla, mantenemos el valor anterior o ponemos error
-        // Para este ejemplo, no actualizamos si falla
-        printf("[Sensor] Error leyendo DHT11\n");
-    }
 
-    // 4. Lectura KY-026 (Devuelve struct KY026_Data)
+    // 4. Lectura KY-026
     KY026_Data fire_result = ky026_read();
     data->flame_detected = fire_result.flame_detected;
 }
 
 int main(int argc, char *argv[])
 {
-    (void)argc;
-    (void)argv;
-
     struct mosquitto *mosq;
     int rc;
 
     // 1. Inicializar Hardware
     if (gpioInitialise() < 0)
-    {
-        fprintf(stderr, "Fallo al inicializar pigpio\n");
         return 1;
-    }
 
-    // --- INICIALIZACIÓN CORRECTA DE SENSORES ---s
-    // Pasamos el PIN y el modo (1=Active High, 0=Active Low)
-
-    mq2_init(PIN_MQ2, 0); // MQ2 suele dar 1 al detectar humo (ajustar si es al reves)
+    // Inicializar Sensores
+    mq2_init(PIN_MQ2, 0);
     mq135_init(PIN_MQ135, 0);
     dht11_init(PIN_DHT11);
-    ky026_init(PIN_KY026, 0); // KY-026 suele dar 0 (LOW) cuando detecta fuego, por eso puse 0
+    ky026_init(PIN_KY026, 0);
 
     // 2. Inicializar MQTT
     mosquitto_lib_init();
-    mosq = mosquitto_new("raspi_brain_real", true, NULL);
+    mosq = mosquitto_new("raspi_brain_v2", true, NULL);
     mosquitto_username_pw_set(mosq, MQTT_USER, MQTT_PASS);
+
+    // REGISTRAR CALLBACK PARA ESCUCHAR AL BOTÓN
+    mosquitto_message_callback_set(mosq, on_message);
 
     rc = mosquitto_connect(mosq, MQTT_HOST, MQTT_PORT, 60);
     if (rc != 0)
@@ -107,49 +132,61 @@ int main(int argc, char *argv[])
         printf("Error MQTT: %s\n", mosquitto_strerror(rc));
         return 1;
     }
-    printf("--- MONITOR AMBIENTAL: PINES %d, %d, %d, %d ---\n",
-           PIN_DHT11, PIN_MQ2, PIN_MQ135, PIN_KY026);
 
+    // SUSCRIBIRSE AL CANAL DE EVENTOS
+    mosquitto_subscribe(mosq, NULL, TOPIC_EVENT, 0);
     mosquitto_loop_start(mosq);
 
-    SystemData data = {0}; // Inicializar a ceros
+    SystemData data = {0};
     char payload_sensors[512];
-    char *system_state = "NORMAL";
+    char *system_state = "NORMAL"; // Estado final decidido
+
+    printf("--- SISTEMA INICIADO EN MODO AUTO ---\n");
 
     while (1)
     {
+        // A. SIEMPRE LEEMOS SENSORES (Para graficar en web)
         read_all_sensors(&data);
 
-        // --- LÓGICA CORREGIDA ---
-        // Usamos '&&' para AND lógico, no '&'
-        // Usamos 'data.temperature', no 'temperature' sola
+        // B. CEREBRO: DECIDIR ESTADO
+        if (manual_mode == 1)
+        {
+            // --- MODO MANUAL (Botón activado) ---
+            // Ignoramos sensores para el color, usamos el estado forzado
+            if (strcmp(manual_status, "ALARM") == 0)
+                system_state = "ALARM";
+            else
+                system_state = "WARNING";
 
-        if (data.flame_detected == 1 || data.temperature > 30.0)
-        {
-            system_state = "ALARM";
-            printf("[PELIGRO] ¡FUEGO O CALOR EXTREMO! Temp: %.1f\n", data.temperature);
-        }
-        else if (data.mq2_gas > 50.0) // Recordar que simulamos >50 como detectado
-        {
-            system_state = "ALARM";
-            printf("[PELIGRO] GAS DETECTADO.\n");
-        }
-        else if (data.mq135_air > 50.0 || data.temperature > 35.0)
-        {
-            system_state = "WARNING";
-            printf("[ATENCION] Calidad aire mala o calor. Temp: %.1f\n", data.temperature);
+            // (Opcional) Si detecta fuego real, podríamos forzar alarma igual por seguridad,
+            // pero bajo tu pedido estricto, el manual manda.
         }
         else
         {
-            system_state = "NORMAL";
-            printf("[OK] T:%.1f H:%.1f Gas:%d Aire:%d Fuego:%d\n",
-                   data.temperature, data.humidity,
-                   (int)data.mq2_gas, (int)data.mq135_air, data.flame_detected);
+            // --- MODO AUTOMÁTICO (Sensores mandan) ---
+            if (data.flame_detected == 1 || data.temperature > 30.0)
+            {
+                system_state = "ALARM";
+            }
+            else if (data.mq2_gas > 50.0)
+            {
+                system_state = "ALARM";
+            }
+            else if (data.mq135_air > 50.0 || data.temperature > 35.0)
+            {
+                system_state = "WARNING";
+            }
+            else
+            {
+                system_state = "NORMAL";
+            }
         }
 
-        // Publicar
+        // C. PUBLICAR ESTADO (Para que la ESP32 prenda el LED)
         mosquitto_publish(mosq, NULL, TOPIC_STATE, strlen(system_state), system_state, 0, 0);
 
+        // D. PUBLICAR DATOS (Para la Web)
+        // Incluimos "mode" para que la web sepa si pintar el botón de Azul/Rojo/Verde
         sprintf(payload_sensors,
                 "{"
                 "\"mq2\": %.1f, "
@@ -157,18 +194,21 @@ int main(int argc, char *argv[])
                 "\"temp\": %.1f, "
                 "\"hum\": %.1f, "
                 "\"fire\": %d, "
-                "\"status\": \"%s\""
+                "\"status\": \"%s\", "
+                "\"mode\": \"%s\""
                 "}",
                 data.mq2_gas,
                 data.mq135_air,
                 data.temperature,
                 data.humidity,
                 data.flame_detected,
-                system_state);
+                system_state,
+                (manual_mode ? "MANUAL" : "AUTO"));
 
         mosquitto_publish(mosq, NULL, TOPIC_SENSORS, strlen(payload_sensors), payload_sensors, 0, 0);
 
-        sleep(2);
+        printf("[Estado: %s] [Modo: %s] T:%.1f\n", system_state, (manual_mode ? "MAN" : "AUTO"), data.temperature);
+        sleep(1); // Ciclo de 1 segundo para mejor respuesta
     }
 
     mosquitto_lib_cleanup();
